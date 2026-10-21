@@ -1,0 +1,6 @@
+{
+  "name": "SpendSync - Gmail Expense & Budget Tracker",
+  "description": "Automated personal budget and expense tracker that syncs receipts and transaction alerts directly from Gmail with real-time analytics, charts, and PDF/Excel export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
