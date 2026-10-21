@@ -123,12 +123,22 @@ export const ExcelImportExportView: React.FC<ExcelImportExportViewProps> = ({
 
       {/* 2. DOWNLOAD EXCEL & PDF REPORTS */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
-        <div className="flex items-center gap-2 text-emerald-400">
-          <Download className="w-5 h-5" />
-          <h3 className="text-sm font-bold text-white">Download Sales Reports</h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <Download className="w-5 h-5" />
+            <h3 className="text-sm font-bold text-white">Download Sales Reports & Templates</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => ExportVisitService.downloadTemplate()}
+            className="text-[11px] font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 bg-sky-950/40 px-2.5 py-1 rounded-lg border border-sky-800/40"
+          >
+            <Table className="w-3.5 h-3.5" />
+            <span>Blank Template (.xlsx)</span>
+          </button>
         </div>
         <p className="text-xs text-slate-300">
-          Download formatted records containing all customer visits, geographic locations, brands, and follow-up schedules.
+          Download formatted records containing customer visits, GPS Google Maps tag links, Brand (S CRAFT, SMART, OTHERS), uPVC series, GST numbers, and follow-up schedules.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -143,9 +153,9 @@ export const ExcelImportExportView: React.FC<ExcelImportExportViewProps> = ({
                 <FileSpreadsheet className="w-5 h-5 text-emerald-100" />
               </div>
               <div className="text-left">
-                <div className="text-xs font-bold leading-tight">Download Excel</div>
+                <div className="text-xs font-bold leading-tight">Download Excel (.xlsx)</div>
                 <div className="text-[10px] text-emerald-200 font-normal">
-                  .XLSX Workbook (Visits + Summary)
+                  With Clickable GPS Maps Links + Summary
                 </div>
               </div>
             </div>
@@ -163,9 +173,9 @@ export const ExcelImportExportView: React.FC<ExcelImportExportViewProps> = ({
                 <FileText className="w-5 h-5" />
               </div>
               <div className="text-left">
-                <div className="text-xs font-bold leading-tight">Download PDF</div>
+                <div className="text-xs font-bold leading-tight">Download PDF Report</div>
                 <div className="text-[10px] text-slate-300 font-normal">
-                  Printable Landscape Report
+                  Printable Table with GPS Tag Links
                 </div>
               </div>
             </div>

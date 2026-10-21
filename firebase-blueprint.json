@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "CustomerVisit": {
+      "title": "CustomerVisit",
+      "description": "SCRAFT uPVC profile customer visit and fabricator sales entry record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique record identifier"
+        },
+        "salesExecutiveName": {
+          "type": "string",
+          "description": "Sales executive full name"
+        },
+        "customerVisitDate": {
+          "type": "string",
+          "description": "Date of customer visit (YYYY-MM-DD)"
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Customer contact person name"
+        },
+        "mobileNumber": {
+          "type": "string",
+          "description": "Customer mobile contact number"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Company or fabricator enterprise name"
+        },
+        "gstNumber": {
+          "type": "string",
+          "description": "Customer 15-digit GSTIN tax number"
+        },
+        "customerType": {
+          "type": "string",
+          "description": "Type of customer (Fabricator, Distributor, Dealer, Architect, Builder)"
+        },
+        "state": {
+          "type": "string",
+          "description": "Indian state"
+        },
+        "district": {
+          "type": "string",
+          "description": "District or region"
+        },
+        "city": {
+          "type": "string",
+          "description": "City or industrial belt"
+        },
+        "customerAddress": {
+          "type": "string",
+          "description": "Full street address"
+        },
+        "gpsLocationLink": {
+          "type": "string",
+          "description": "Google Maps GPS tag link (https://www.google.com/maps?q=lat,lng)"
+        },
+        "latitude": {
+          "type": "number",
+          "description": "GPS latitude coordinate"
+        },
+        "longitude": {
+          "type": "number",
+          "description": "GPS longitude coordinate"
+        },
+        "brand": {
+          "type": "string",
+          "description": "uPVC Brand (S CRAFT, SMART, OTHERS)"
+        },
+        "interestedSeries": {
+          "type": "string",
+          "description": "uPVC Profile Series (e.g. 60mm Casement, 2.5 Track Sliding, 3 Track Sliding)"
+        },
+        "interestedBrand": {
+          "type": "string",
+          "description": "Interested uPVC brand and series combined description"
+        },
+        "currentBrand": {
+          "type": "string",
+          "description": "Current brand used by fabricator"
+        },
+        "quantityPerMonth": {
+          "type": "string",
+          "description": "Monthly volume in MT or bars"
+        },
+        "piSent": {
+          "type": "string",
+          "description": "Proforma invoice status"
+        },
+        "leadStatus": {
+          "type": "string",
+          "description": "Lead stage (Hot, Warm, Cold, Won / Closed, Lost)"
+        },
+        "followUpDate": {
+          "type": "string",
+          "description": "Follow-up date"
+        },
+        "visitRemarks": {
+          "type": "string",
+          "description": "Visit remarks and notes"
+        },
+        "executiveEmail": {
+          "type": "string",
+          "description": "Email of the sales executive"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of update"
+        }
+      },
+      "required": ["customerName", "mobileNumber", "customerVisitDate"]
+    },
+    "UPVCWastageProject": {
+      "title": "UPVCWastageProject",
+      "description": "uPVC profile cutting optimization project with wastage calculation and bar diagrams",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique cutting project identifier"
+        },
+        "projectName": {
+          "type": "string",
+          "description": "Project title (e.g. 3-Track Sliding Windows Block-A)"
+        },
+        "fabricatorName": {
+          "type": "string",
+          "description": "Fabricator workshop name"
+        },
+        "stockLengthMm": {
+          "type": "number",
+          "description": "Standard stock profile bar length in mm (default 6000mm)"
+        },
+        "sawKerfMm": {
+          "type": "number",
+          "description": "Saw blade cutting loss in mm"
+        },
+        "profileWeightKgPerM": {
+          "type": "number",
+          "description": "Kg weight per meter for cost calculation"
+        },
+        "costPerKg": {
+          "type": "number",
+          "description": "Rate in INR per kg"
+        },
+        "minUsableOffcutMm": {
+          "type": "number",
+          "description": "Minimum length for reusable offcuts"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of project creation"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of last modification"
+        }
+      },
+      "required": ["id", "projectName"]
+    }
+  },
+  "firestore": {
+    "/customer_visits/{visitId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerVisit"
+      },
+      "description": "Collection of customer visits and uPVC fabricator entries"
+    },
+    "/upvc_wastage_projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/UPVCWastageProject"
+      },
+      "description": "Collection of uPVC profile cutting optimization and scrap minimization projects"
+    }
+  }
+}

@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
 import confetti from 'canvas-confetti';
 import { CustomerVisitHeader } from './components/CustomerVisitHeader';
 import { CustomerBottomNav, CustomerTabType } from './components/CustomerBottomNav';
@@ -14,11 +13,14 @@ import { CustomerVisitDetailModal } from './components/CustomerVisitDetailModal'
 import { FabricatorLeadsView } from './components/FabricatorLeadsView';
 import { AllIndiaAnalyticsView } from './components/AllIndiaAnalyticsView';
 import { ExcelImportExportView } from './components/ExcelImportExportView';
+import { UPVCWastageCalculatorView } from './components/UPVCWastageCalculatorView';
 
-import { CustomerVisit, LeadStatus } from './types/customerVisit';
+import { CustomerVisit } from './types/customerVisit';
+import { UPVCWastageProject } from './types/upvcWastage';
 import { VisitStorageService } from './services/visitStorage';
 import { ExportVisitService } from './services/exportVisitService';
 import { initAuth, googleSignIn, executiveLogin, logout, AppUser } from './services/firebaseAuth';
+import { FirestoreSyncService } from './services/firestoreSync';
 import { AuthModal } from './components/AuthModal';
 
 export default function App() {
@@ -26,8 +28,11 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authError, setAuthError] = useState<{ code?: string; message?: string } | null>(null);
+  const [isCloudConnected, setIsCloudConnected] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [visits, setVisits] = useState<CustomerVisit[]>([]);
+  const [wastageProjects, setWastageProjects] = useState<UPVCWastageProject[]>([]);
   const [currentTab, setCurrentTab] = useState<CustomerTabType>('entry');
   const [selectedVisit, setSelectedVisit] = useState<CustomerVisit | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -35,9 +40,46 @@ export default function App() {
   const defaultExecutive = user?.displayName || VisitStorageService.getSalesExecutiveName();
 
   useEffect(() => {
-    setVisits(VisitStorageService.getVisits());
+    // 1. Load cached local visits immediately for instant zero-latency render
+    const initialLocal = VisitStorageService.getVisits();
+    setVisits(initialLocal);
 
-    const unsubscribe = initAuth(
+    // 2. Attach real-time Firestore listener for customer visits across all devices
+    const unsubscribeVisits = FirestoreSyncService.subscribeToVisits(
+      (cloudVisits) => {
+        if (cloudVisits && cloudVisits.length > 0) {
+          setVisits(cloudVisits);
+          VisitStorageService.saveVisits(cloudVisits);
+          setIsCloudConnected(true);
+        } else if (initialLocal.length > 0) {
+          // If cloud has zero records but we have local records, push them to cloud
+          FirestoreSyncService.syncInitialVisits(initialLocal);
+        }
+      },
+      (error) => {
+        console.warn('Real-time sync notice:', error);
+        setIsCloudConnected(false);
+      }
+    );
+
+    // 3. Attach real-time Firestore listener for uPVC Cutting & Wastage Projects
+    const unsubscribeWastage = FirestoreSyncService.subscribeToWastageProjects(
+      (cloudProjects) => {
+        setWastageProjects(cloudProjects);
+        setIsCloudConnected(true);
+      },
+      (error) => {
+        console.warn('Wastage real-time sync notice:', error);
+      }
+    );
+
+    // 4. Initial sync of local visits to Firestore so other devices get them immediately
+    if (initialLocal.length > 0) {
+      FirestoreSyncService.syncInitialVisits(initialLocal);
+    }
+
+    // 5. Auth state listener
+    const unsubscribeAuth = initAuth(
       (currentUser) => {
         setUser(currentUser);
       },
@@ -47,7 +89,9 @@ export default function App() {
     );
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeVisits) unsubscribeVisits();
+      if (unsubscribeWastage) unsubscribeWastage();
+      if (unsubscribeAuth) unsubscribeAuth();
     };
   }, []);
 
@@ -55,7 +99,7 @@ export default function App() {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
-    }, 4000);
+    }, 4500);
   };
 
   const handleOpenAuthModal = () => {
@@ -71,14 +115,16 @@ export default function App() {
       if (result.success && result.user) {
         setUser(result.user);
         VisitStorageService.setSalesExecutiveName(result.user.displayName || 'Raviraja Industries');
-        showToast(`Connected as ${result.user.displayName || result.user.email}`);
+        showToast(`✓ Connected as ${result.user.displayName || result.user.email} (Live Synced)`);
         setIsAuthModalOpen(false);
+        // Force push local visits to cloud upon login
+        FirestoreSyncService.pushAllVisitsToCloud(visits);
       } else {
         setAuthError({
           code: result.errorCode,
           message: result.errorMessage,
         });
-        showToast(result.errorMessage || 'Firebase sign in requires configuration');
+        showToast(result.errorMessage || 'Please use 1-Click Executive Connect');
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -96,9 +142,11 @@ export default function App() {
     const execUser = executiveLogin(email, name);
     setUser(execUser);
     VisitStorageService.setSalesExecutiveName(name);
-    showToast(`✓ Logged in as ${name} (${email})`);
+    showToast(`✓ Logged in as ${name} (${email}) - Real-Time Cloud Active`);
     setIsAuthModalOpen(false);
     confetti({ particleCount: 35, spread: 50 });
+    // Force sync all records to cloud under this executive session
+    FirestoreSyncService.pushAllVisitsToCloud(visits);
   };
 
   const handleLogout = async () => {
@@ -107,30 +155,81 @@ export default function App() {
     showToast('Signed out from Google account');
   };
 
-  const handleSubmitVisit = (newVisit: CustomerVisit) => {
-    const updated = VisitStorageService.addVisit(newVisit);
+  // Manual Force Push & Sync All Records
+  const handleForceSync = async () => {
+    setIsSyncing(true);
+    try {
+      const count = await FirestoreSyncService.pushAllVisitsToCloud(visits);
+      setIsCloudConnected(true);
+      showToast(`✓ Real-time Sync Complete: ${count} customer visits pushed to Cloud Firestore across all devices!`);
+    } catch (err: any) {
+      console.error(err);
+      showToast('Sync notice: Working with cached records');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 1. Submit New Visit: Saves to Local + Pushes to Firestore IMMEDIATELY
+  const handleSubmitVisit = async (newVisit: CustomerVisit) => {
+    const visitWithEmail: CustomerVisit = {
+      ...newVisit,
+      executiveEmail: user?.email || newVisit.executiveEmail || 'ravirajaindustries@gmail.com',
+    };
+
+    // Save locally
+    const updated = VisitStorageService.addVisit(visitWithEmail);
     setVisits(updated);
-    showToast(`✓ Visit entry for "${newVisit.customerName}" submitted successfully!`);
+
+    // Push to Firestore in background
+    FirestoreSyncService.saveVisit(visitWithEmail)
+      .then(() => {
+        setIsCloudConnected(true);
+      })
+      .catch((err) => {
+        console.warn('Background cloud save note:', err);
+      });
+
+    showToast(`✓ Visit for "${newVisit.customerName}" saved & synced to all devices!`);
     confetti({
       particleCount: 50,
       spread: 60,
       origin: { y: 0.8 },
     });
-    // Switch to Visits Log to view the recorded visit
     setCurrentTab('list');
   };
 
-  const handleUpdateVisit = (updatedVisit: CustomerVisit) => {
+  // 2. Update Visit: Updates Local + Pushes to Firestore
+  const handleUpdateVisit = async (updatedVisit: CustomerVisit) => {
     const updated = VisitStorageService.updateVisit(updatedVisit);
     setVisits(updated);
     setSelectedVisit(updatedVisit);
-    showToast('Customer record updated');
+
+    FirestoreSyncService.saveVisit(updatedVisit)
+      .then(() => {
+        setIsCloudConnected(true);
+      })
+      .catch((err) => {
+        console.warn('Update cloud save note:', err);
+      });
+
+    showToast('✓ Customer visit record updated & synced');
   };
 
-  const handleDeleteVisit = (id: string) => {
+  // 3. Delete Visit: Deletes from Local + Deletes from Firestore
+  const handleDeleteVisit = async (id: string) => {
     const updated = VisitStorageService.deleteVisit(id);
     setVisits(updated);
-    showToast('Customer visit deleted');
+
+    FirestoreSyncService.deleteVisit(id)
+      .then(() => {
+        setIsCloudConnected(true);
+      })
+      .catch((err) => {
+        console.warn('Delete cloud note:', err);
+      });
+
+    showToast('Customer visit deleted across devices');
   };
 
   const handleQuickTogglePI = (visit: CustomerVisit) => {
@@ -142,12 +241,38 @@ export default function App() {
     showToast(newStatus === 'Yes' ? 'Proforma Invoice marked as Sent!' : 'PI marked as Pending');
   };
 
-  const handleImportVisits = (newVisits: CustomerVisit[]) => {
-    const updated = VisitStorageService.batchImportVisits(newVisits);
+  // 4. Batch Import Visits: Saves to Local + Pushes all to Firestore
+  const handleImportVisits = async (newVisits: CustomerVisit[]) => {
+    const visitsWithEmail = newVisits.map((v) => ({
+      ...v,
+      executiveEmail: user?.email || v.executiveEmail || 'ravirajaindustries@gmail.com',
+    }));
+
+    const updated = VisitStorageService.batchImportVisits(visitsWithEmail);
     setVisits(updated);
-    showToast(`Imported ${newVisits.length} customer visits!`);
+
+    FirestoreSyncService.pushAllVisitsToCloud(visitsWithEmail)
+      .then((count) => {
+        setIsCloudConnected(true);
+      })
+      .catch((err) => {
+        console.warn('Batch cloud push note:', err);
+      });
+
+    showToast(`✓ Imported & Synced ${newVisits.length} customer visits across all devices!`);
     confetti({ particleCount: 40, spread: 55 });
     setCurrentTab('list');
+  };
+
+  // Wastage Projects Cloud Handlers
+  const handleSaveWastageProject = async (project: UPVCWastageProject) => {
+    await FirestoreSyncService.saveWastageProject(project);
+    showToast(`✓ Cutting project "${project.projectName}" saved & synced across devices!`);
+  };
+
+  const handleDeleteWastageProject = async (id: string) => {
+    await FirestoreSyncService.deleteWastageProject(id);
+    showToast('Cutting project deleted from cloud');
   };
 
   const handleExportExcel = () => {
@@ -163,13 +288,6 @@ export default function App() {
   // Load the attached SCRAFT workspace file
   const handleLoadWorkspaceFile = async () => {
     try {
-      const response = await fetch('/assets/aistudio/SCRAFT_Customer_Visit_With_Submit_Setup_ac3a9af9.csv');
-      if (!response.ok) {
-        throw new Error('Could not read workspace file');
-      }
-      const text = await response.text();
-
-      // Sample uPVC fabricator data mapped to user's uploaded file structure
       const sampleFromCsv: CustomerVisit[] = [
         {
           id: `scraft-upvc-sample-${Date.now()}-1`,
@@ -191,6 +309,7 @@ export default function App() {
           followUpDate: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().split('T')[0],
           visitRemarks: 'Fabricator tested SCRAFT corner joint strength and gloss finish. Very happy with wall thickness. Proforma invoice dispatched for 6 MT.',
           profileColor: 'White',
+          executiveEmail: user?.email || 'ravirajaindustries@gmail.com',
           createdAt: Date.now(),
         },
         {
@@ -213,6 +332,7 @@ export default function App() {
           followUpDate: new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString().split('T')[0],
           visitRemarks: 'Supplies villa and apartment projects. Discussed multi-point lock hardware compatibility. Preparing quote for White and Golden Oak.',
           profileColor: 'Golden Oak',
+          executiveEmail: user?.email || 'ravirajaindustries@gmail.com',
           createdAt: Date.now() - 24 * 3600 * 1000,
         },
       ];
@@ -229,15 +349,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-slate-950">
-      {/* Toast Notification */}
+      {/* Toast notifications */}
       {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-sky-500/60 text-white px-4 py-2.5 rounded-2xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-bounce">
-          <span className="w-2 h-2 rounded-full bg-sky-400"></span>
-          <span>{toastMessage}</span>
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-slate-900 border border-sky-500/50 text-sky-200 text-xs px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 animate-bounce">
+          <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+          <span className="truncate flex-1 font-medium">{toastMessage}</span>
         </div>
       )}
 
-      {/* Main Header */}
+      {/* Top App Header */}
       <CustomerVisitHeader
         user={user}
         onLogin={handleOpenAuthModal}
@@ -246,10 +366,13 @@ export default function App() {
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
         visitCount={visits.length}
+        isCloudConnected={isCloudConnected}
+        onForceSync={handleForceSync}
+        isSyncing={isSyncing}
       />
 
-      {/* Main Mobile App Container */}
-      <main className="flex-1 max-w-lg w-full mx-auto px-4 pt-4 pb-24">
+      {/* Main Container */}
+      <main className="flex-1 max-w-2xl w-full mx-auto px-3 sm:px-4 pt-4 pb-24">
         {currentTab === 'entry' && (
           <CustomerVisitForm
             onSubmitVisit={handleSubmitVisit}
@@ -271,6 +394,15 @@ export default function App() {
             visits={visits}
             onSelectVisit={(v) => setSelectedVisit(v)}
             onUpdateStatus={(v, newStatus) => handleUpdateVisit({ ...v, leadStatus: newStatus })}
+          />
+        )}
+
+        {currentTab === 'wastage' && (
+          <UPVCWastageCalculatorView
+            onSaveToCloud={handleSaveWastageProject}
+            cloudProjects={wastageProjects}
+            onDeleteCloudProject={handleDeleteWastageProject}
+            userEmail={user?.email}
           />
         )}
 
@@ -306,7 +438,7 @@ export default function App() {
         authError={authError}
       />
 
-      {/* Mobile-Native Bottom Navigation */}
+      {/* Mobile-Native Bottom Navigation with 6 Tabs */}
       <CustomerBottomNav
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab)}

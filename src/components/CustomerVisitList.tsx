@@ -15,6 +15,9 @@ import {
   Eye,
   Trash2,
   ChevronRight,
+  Navigation,
+  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import { CustomerVisit } from '../types/customerVisit';
 import { INDIAN_STATES } from '../data/indiaLocations';
@@ -35,6 +38,7 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [selectedType, setSelectedType] = useState<string>('All');
+  const [selectedBrand, setSelectedBrand] = useState<string>('All');
   const [selectedState, setSelectedState] = useState<string>('All');
   const [selectedPISent, setSelectedPISent] = useState<string>('All');
 
@@ -45,9 +49,12 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
         v.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.mobileNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (v.gstNumber && v.gstNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
         v.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.state.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (v.brand && v.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (v.interestedSeries && v.interestedSeries.toLowerCase().includes(searchTerm.toLowerCase())) ||
         v.interestedBrand.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.visitRemarks.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -56,16 +63,37 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
       const matchState = selectedState === 'All' || v.state === selectedState;
       const matchPI = selectedPISent === 'All' || v.piSent === selectedPISent;
 
-      return matchSearch && matchStatus && matchType && matchState && matchPI;
+      // Brand filter: S CRAFT, SMART, OTHERS
+      let matchBrand = true;
+      if (selectedBrand !== 'All') {
+        if (selectedBrand === 'S CRAFT') {
+          matchBrand =
+            v.brand === 'S CRAFT' ||
+            (!v.brand && (v.interestedBrand.includes('SCRAFT') || v.interestedBrand.includes('S CRAFT')));
+        } else if (selectedBrand === 'SMART') {
+          matchBrand =
+            v.brand === 'SMART' ||
+            (!v.brand && v.interestedBrand.toLowerCase().includes('smart'));
+        } else if (selectedBrand === 'OTHERS') {
+          matchBrand =
+            v.brand !== 'S CRAFT' &&
+            v.brand !== 'SMART' &&
+            !v.interestedBrand.includes('SCRAFT') &&
+            !v.interestedBrand.includes('S CRAFT') &&
+            !v.interestedBrand.toLowerCase().includes('smart');
+        }
+      }
+
+      return matchSearch && matchStatus && matchType && matchBrand && matchState && matchPI;
     });
-  }, [visits, searchTerm, selectedStatus, selectedType, selectedState, selectedPISent]);
+  }, [visits, searchTerm, selectedStatus, selectedType, selectedBrand, selectedState, selectedPISent]);
 
   const cleanPhoneForWhatsApp = (phone: string) => {
     return phone.replace(/[^0-9]/g, '');
   };
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-12">
       {/* Title & Stats */}
       <div className="flex items-center justify-between">
         <div>
@@ -83,7 +111,7 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search fabricator, company, mobile, city, uPVC series..."
+          placeholder="Search fabricator, company, GST, mobile, city, brand, GPS..."
           className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-8 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 shadow-inner"
         />
         {searchTerm && (
@@ -95,6 +123,31 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
             ✕
           </button>
         )}
+      </div>
+
+      {/* Brand Filters (S CRAFT, SMART, OTHERS) */}
+      <div className="overflow-x-auto no-scrollbar -mx-4 px-4 flex items-center gap-1.5 pb-0.5">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+          <Sparkles className="w-3 h-3 text-sky-400" /> Brand:
+        </span>
+        {['All', 'S CRAFT', 'SMART', 'OTHERS'].map((b) => (
+          <button
+            key={b}
+            type="button"
+            onClick={() => setSelectedBrand(b)}
+            className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold transition ${
+              selectedBrand === b
+                ? b === 'SMART'
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
+                  : b === 'OTHERS'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                  : 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60'
+            }`}
+          >
+            {b === 'All' ? 'All Brands' : b}
+          </button>
+        ))}
       </div>
 
       {/* Customer Type Quick Filters (Fabricator, Distributor, etc.) */}
@@ -182,6 +235,13 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
           filteredVisits.map((visit) => {
             const isHot = visit.leadStatus === 'Hot';
             const isWon = visit.leadStatus === 'Won / Closed';
+            const visitBrand =
+              visit.brand ||
+              (visit.interestedBrand.includes('SMART')
+                ? 'SMART'
+                : visit.interestedBrand.includes('SCRAFT') || visit.interestedBrand.includes('S CRAFT')
+                ? 'S CRAFT'
+                : 'OTHERS');
 
             return (
               <div
@@ -212,20 +272,46 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-xs text-slate-300 mt-1 font-medium">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-300 mt-1 font-medium">
                       <User className="w-3 h-3 text-slate-500" />
                       <span>{visit.customerName}</span>
                       <span className="text-slate-500">•</span>
                       <span className="text-slate-400">{visit.customerType}</span>
+                      {visit.gstNumber && (
+                        <>
+                          <span className="text-slate-500">•</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-sky-950/60 text-sky-300 border border-sky-800/40">
+                            GST: {visit.gstNumber}
+                          </span>
+                        </>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-1">
-                      <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
-                      <span className="truncate">
-                        {visit.city}, {visit.state}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 mt-1.5">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
+                        <span className="truncate">
+                          {visit.city}, {visit.state}
+                        </span>
+                      </div>
                       <span className="text-slate-600">•</span>
                       <span className="text-slate-400">{visit.customerVisitDate}</span>
+
+                      {/* GPS Location Tag Link Button */}
+                      {visit.gpsLocationLink && (
+                        <a
+                          href={visit.gpsLocationLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition shadow-sm"
+                          title="View exact customer visit location on Google Maps"
+                        >
+                          <Navigation className="w-2.5 h-2.5 text-rose-400" />
+                          <span>📍 View GPS Tag</span>
+                          <ExternalLink className="w-2.5 h-2.5 text-rose-400/80" />
+                        </a>
+                      )}
                     </div>
                   </div>
 
@@ -253,9 +339,22 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                 {/* Requirements & PI Status Bar */}
                 <div className="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50 flex items-center justify-between gap-2 text-xs mb-2">
                   <div className="min-w-0">
-                    <span className="text-[10px] text-slate-400 block">Brand & Quantity:</span>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[10px] text-slate-400">Brand:</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                          visitBrand === 'SMART'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : visitBrand === 'OTHERS'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                        }`}
+                      >
+                        {visitBrand}
+                      </span>
+                    </div>
                     <span className="font-semibold text-white truncate block">
-                      {visit.interestedBrand} ({visit.quantityPerMonth})
+                      {visit.interestedSeries || visit.interestedBrand} ({visit.quantityPerMonth})
                     </span>
                   </div>
 

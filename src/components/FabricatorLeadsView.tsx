@@ -112,16 +112,38 @@ export const FabricatorLeadsView: React.FC<FabricatorLeadsViewProps> = ({
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-300">
-                        <span className="text-sky-300 font-medium truncate">{v.interestedBrand}</span>
-                        <span className="font-bold text-white shrink-0">{v.quantityPerMonth}</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-300 gap-1.5 mb-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
+                              v.brand === 'SMART' || v.interestedBrand.includes('SMART')
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : v.brand === 'OTHERS'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                            }`}
+                          >
+                            {v.brand || (v.interestedBrand.includes('SMART') ? 'SMART' : 'S CRAFT')}
+                          </span>
+                          <span className="text-slate-200 font-medium truncate">
+                            {v.interestedSeries || v.interestedBrand}
+                          </span>
+                        </div>
+                        <span className="font-bold text-white shrink-0 text-[10px]">{v.quantityPerMonth}</span>
                       </div>
 
                       <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2 pt-1.5 border-t border-slate-800">
-                        <span>{v.customerName} ({v.customerType})</span>
-                        <span className={v.piSent === 'Yes' ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
-                          PI: {v.piSent}
-                        </span>
+                        <span className="truncate">{v.customerName} ({v.customerType})</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {v.gpsLocationLink && (
+                            <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 px-1 py-0.2 rounded border border-rose-500/20">
+                              📍 GPS
+                            </span>
+                          )}
+                          <span className={v.piSent === 'Yes' ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                            PI: {v.piSent}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}

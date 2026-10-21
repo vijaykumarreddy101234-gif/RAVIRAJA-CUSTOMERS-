@@ -13,15 +13,7 @@ export type LeadStatus = 'Hot' | 'Warm' | 'Cold' | 'Won / Closed' | 'Lost';
 
 export type PISentStatus = 'Yes' | 'No' | 'Under Preparation';
 
-export type UPVCProfileSeries =
-  | 'SCRAFT 60mm Casement Series'
-  | 'SCRAFT 2.5 Track Sliding Series'
-  | 'SCRAFT 3 Track Sliding Series'
-  | 'SCRAFT 80mm Heavy Sliding Series'
-  | 'SCRAFT Laminated Wooden Profiles'
-  | 'SCRAFT Tilt & Turn Series'
-  | 'SCRAFT Eco Series (White)'
-  | 'Custom uPVC Extrusions';
+export type UPVCBrand = 'S CRAFT' | 'SMART' | 'OTHERS' | string;
 
 export interface CustomerVisit {
   id: string;
@@ -31,24 +23,39 @@ export interface CustomerVisit {
   mobileNumber: string;
   companyName: string;
   customerType: CustomerType;
+  gstNumber?: string; // GSTIN e.g. 24AAAAA0000A1Z5
   state: string;
   district: string;
   city: string;
   customerAddress: string;
-  interestedBrand: string; // e.g. SCRAFT 60mm Casement Series
-  currentBrand: string; // e.g. Kommerling, Prominance, Veka
+
+  // GPS Tagging & Location Link
+  gpsLocationLink?: string; // e.g. https://www.google.com/maps?q=23.022505,72.571362
+  latitude?: number;
+  longitude?: number;
+  locationAccuracy?: number; // Accuracy in meters
+  gpsCapturedAt?: string; // Timestamp when GPS was tagged
+
+  // Brand & Series distinction
+  brand?: UPVCBrand; // 'S CRAFT' | 'SMART' | 'OTHERS' (or custom name)
+  interestedSeries?: string; // e.g. '60mm Casement Series (Windows & Doors)'
+  interestedBrand: string; // Combined / Backward-compatible description
+
+  currentBrand: string; // Competitor uPVC brand e.g. Kommerling, Prominance, Veka
   quantityPerMonth: string; // e.g. "5 MT / Month", "1,200 Bars", "25 Tons"
   piSent: PISentStatus;
   leadStatus: LeadStatus;
   followUpDate: string; // YYYY-MM-DD
   visitRemarks: string;
-  profileColor?: 'White' | 'Golden Oak' | 'Walnut' | 'Dark Oak' | 'Anthracite Grey';
+  profileColor?: string;
   executiveEmail?: string;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface VisitFilterOptions {
   search: string;
+  brand?: string;
   state: string;
   leadStatus: string;
   customerType: string;
