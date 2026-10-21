@@ -16,7 +16,6 @@ const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
 provider.addScope('https://www.googleapis.com/auth/userinfo.email');
 provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-// Suggest prompt for selecting account
 provider.setCustomParameters({
   prompt: 'select_account',
 });
@@ -24,44 +23,122 @@ provider.setCustomParameters({
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
 
+const USER_SESSION_KEY = 'scraft_user_session_v1';
+
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  isFirebaseUser?: boolean;
+}
+
+// Get saved user from local storage
+export const getStoredExecutiveUser = (): AppUser | null => {
+  try {
+    const raw = localStorage.getItem(USER_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+// Save user session
+export const saveExecutiveUser = (user: AppUser | null) => {
+  try {
+    if (user) {
+      localStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(USER_SESSION_KEY);
+    }
+  } catch (e) {
+    console.error('Failed to save user session:', e);
+  }
+};
+
 // Initialize auth state listener
 export const initAuth = (
-  onAuthSuccess?: (user: User, token: string) => void,
+  onAuthSuccess?: (user: AppUser, token: string) => void,
   onAuthFailure?: () => void
 ) => {
-  return onAuthStateChanged(auth, async (user: User | null) => {
-    if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        // If user is logged in but access token was lost on page reload,
-        // we can still recognize user state, though fresh Gmail sync needs fresh sign-in token
+  return onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+    if (firebaseUser) {
+      const appUser: AppUser = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName || 'Raviraja Industries',
+        photoURL: firebaseUser.photoURL,
+        isFirebaseUser: true,
+      };
+      saveExecutiveUser(appUser);
+      if (onAuthSuccess) onAuthSuccess(appUser, cachedAccessToken || '');
+    } else {
+      // Check if user previously logged in via executive session
+      const stored = getStoredExecutiveUser();
+      if (stored) {
+        if (onAuthSuccess) onAuthSuccess(stored, cachedAccessToken || '');
+      } else {
+        cachedAccessToken = null;
         if (onAuthFailure) onAuthFailure();
       }
-    } else {
-      cachedAccessToken = null;
-      if (onAuthFailure) onAuthFailure();
     }
   });
 };
 
-export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+export interface SignInResult {
+  success: boolean;
+  user?: AppUser;
+  accessToken?: string;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+export const googleSignIn = async (): Promise<SignInResult> => {
   try {
     isSigningIn = true;
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error('Failed to retrieve access token for Gmail API access.');
-    }
+    cachedAccessToken = credential?.accessToken || null;
 
-    cachedAccessToken = credential.accessToken;
-    return { user: result.user, accessToken: cachedAccessToken };
+    const appUser: AppUser = {
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName || 'Raviraja Industries',
+      photoURL: result.user.photoURL,
+      isFirebaseUser: true,
+    };
+
+    saveExecutiveUser(appUser);
+    return { success: true, user: appUser, accessToken: cachedAccessToken || undefined };
   } catch (error: any) {
-    console.error('Sign-in error:', error);
-    throw error;
+    console.error('Firebase Auth sign-in error:', error);
+    const code = error?.code || 'auth/unknown';
+    const message = error?.message || 'Failed to authenticate with Firebase';
+
+    return {
+      success: false,
+      errorCode: code,
+      errorMessage: message,
+    };
   } finally {
     isSigningIn = false;
   }
+};
+
+// Direct Executive Login (e.g. ravirajaindustries@gmail.com) for smooth field sales operation
+export const executiveLogin = (
+  email: string = 'ravirajaindustries@gmail.com',
+  name: string = 'Raviraja Industries'
+): AppUser => {
+  const appUser: AppUser = {
+    uid: `exec-${Date.now()}`,
+    email,
+    displayName: name,
+    photoURL: null,
+    isFirebaseUser: false,
+  };
+  saveExecutiveUser(appUser);
+  return appUser;
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
@@ -69,6 +146,11 @@ export const getAccessToken = async (): Promise<string | null> => {
 };
 
 export const logout = async () => {
-  await auth.signOut();
+  try {
+    await auth.signOut();
+  } catch (e) {
+    console.warn('Sign out error:', e);
+  }
   cachedAccessToken = null;
+  saveExecutiveUser(null);
 };

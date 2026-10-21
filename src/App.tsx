@@ -18,11 +18,14 @@ import { ExcelImportExportView } from './components/ExcelImportExportView';
 import { CustomerVisit, LeadStatus } from './types/customerVisit';
 import { VisitStorageService } from './services/visitStorage';
 import { ExportVisitService } from './services/exportVisitService';
-import { initAuth, googleSignIn, logout } from './services/firebaseAuth';
+import { initAuth, googleSignIn, executiveLogin, logout, AppUser } from './services/firebaseAuth';
+import { AuthModal } from './components/AuthModal';
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authError, setAuthError] = useState<{ code?: string; message?: string } | null>(null);
 
   const [visits, setVisits] = useState<CustomerVisit[]>([]);
   const [currentTab, setCurrentTab] = useState<CustomerTabType>('entry');
@@ -55,21 +58,47 @@ export default function App() {
     }, 4000);
   };
 
-  const handleLogin = async () => {
+  const handleOpenAuthModal = () => {
+    setAuthError(null);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
+    setAuthError(null);
     try {
       const result = await googleSignIn();
-      if (result) {
+      if (result.success && result.user) {
         setUser(result.user);
-        VisitStorageService.setSalesExecutiveName(result.user.displayName || 'Raviraja Sales Team');
+        VisitStorageService.setSalesExecutiveName(result.user.displayName || 'Raviraja Industries');
         showToast(`Connected as ${result.user.displayName || result.user.email}`);
+        setIsAuthModalOpen(false);
+      } else {
+        setAuthError({
+          code: result.errorCode,
+          message: result.errorMessage,
+        });
+        showToast(result.errorMessage || 'Firebase sign in requires configuration');
       }
     } catch (err: any) {
       console.error('Login error:', err);
+      setAuthError({
+        code: err?.code || 'auth/error',
+        message: err?.message || 'Failed to connect Google account',
+      });
       showToast(err.message || 'Failed to connect Google account');
     } finally {
       setIsLoggingIn(false);
     }
+  };
+
+  const handleExecutiveLogin = (email: string, name: string) => {
+    const execUser = executiveLogin(email, name);
+    setUser(execUser);
+    VisitStorageService.setSalesExecutiveName(name);
+    showToast(`✓ Logged in as ${name} (${email})`);
+    setIsAuthModalOpen(false);
+    confetti({ particleCount: 35, spread: 50 });
   };
 
   const handleLogout = async () => {
@@ -211,7 +240,7 @@ export default function App() {
       {/* Main Header */}
       <CustomerVisitHeader
         user={user}
-        onLogin={handleLogin}
+        onLogin={handleOpenAuthModal}
         onLogout={handleLogout}
         isLoggingIn={isLoggingIn}
         onExportExcel={handleExportExcel}
@@ -265,6 +294,16 @@ export default function App() {
         onClose={() => setSelectedVisit(null)}
         onUpdateVisit={handleUpdateVisit}
         onDeleteVisit={handleDeleteVisit}
+      />
+
+      {/* Auth Modal with Google Sign-in and 1-Click Raviraja Executive Login */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onExecutiveLogin={handleExecutiveLogin}
+        isLoggingIn={isLoggingIn}
+        authError={authError}
       />
 
       {/* Mobile-Native Bottom Navigation */}

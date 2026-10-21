@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User } from 'firebase/auth';
+import { AppUser } from '../services/firebaseAuth';
 import {
   Building2,
   FileSpreadsheet,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 interface CustomerVisitHeaderProps {
-  user: User | null;
+  user: AppUser | null;
   onLogin: () => void;
   onLogout: () => void;
   isLoggingIn: boolean;
