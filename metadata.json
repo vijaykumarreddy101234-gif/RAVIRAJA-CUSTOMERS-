@@ -1,6 +1,6 @@
 {
-  "name": "SpendSync - Gmail Expense & Budget Tracker",
-  "description": "Automated personal budget and expense tracker that syncs receipts and transaction alerts directly from Gmail with real-time analytics, charts, and PDF/Excel export.",
-  "requestFramePermissions": [],
+  "name": "SCRAFT uPVC Customer Visits & All-India Sales",
+  "description": "Official All-India field visit tracking and order management app for Raviraja Industries Pvt. Ltd. uPVC profiles (S CRAFT, SMART, OTHERS) with GPS tagging, live cloud sync, Excel & PDF reports.",
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

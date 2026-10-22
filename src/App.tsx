@@ -13,10 +13,8 @@ import { CustomerVisitDetailModal } from './components/CustomerVisitDetailModal'
 import { FabricatorLeadsView } from './components/FabricatorLeadsView';
 import { AllIndiaAnalyticsView } from './components/AllIndiaAnalyticsView';
 import { ExcelImportExportView } from './components/ExcelImportExportView';
-import { UPVCWastageCalculatorView } from './components/UPVCWastageCalculatorView';
 
 import { CustomerVisit } from './types/customerVisit';
-import { UPVCWastageProject } from './types/upvcWastage';
 import { VisitStorageService } from './services/visitStorage';
 import { ExportVisitService } from './services/exportVisitService';
 import { initAuth, googleSignIn, executiveLogin, logout, AppUser } from './services/firebaseAuth';
@@ -32,7 +30,6 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const [visits, setVisits] = useState<CustomerVisit[]>([]);
-  const [wastageProjects, setWastageProjects] = useState<UPVCWastageProject[]>([]);
   const [currentTab, setCurrentTab] = useState<CustomerTabType>('entry');
   const [selectedVisit, setSelectedVisit] = useState<CustomerVisit | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -62,23 +59,12 @@ export default function App() {
       }
     );
 
-    // 3. Attach real-time Firestore listener for uPVC Cutting & Wastage Projects
-    const unsubscribeWastage = FirestoreSyncService.subscribeToWastageProjects(
-      (cloudProjects) => {
-        setWastageProjects(cloudProjects);
-        setIsCloudConnected(true);
-      },
-      (error) => {
-        console.warn('Wastage real-time sync notice:', error);
-      }
-    );
-
-    // 4. Initial sync of local visits to Firestore so other devices get them immediately
+    // 3. Initial sync of local visits to Firestore so other devices get them immediately
     if (initialLocal.length > 0) {
       FirestoreSyncService.syncInitialVisits(initialLocal);
     }
 
-    // 5. Auth state listener
+    // 4. Auth state listener
     const unsubscribeAuth = initAuth(
       (currentUser) => {
         setUser(currentUser);
@@ -90,7 +76,6 @@ export default function App() {
 
     return () => {
       if (unsubscribeVisits) unsubscribeVisits();
-      if (unsubscribeWastage) unsubscribeWastage();
       if (unsubscribeAuth) unsubscribeAuth();
     };
   }, []);
@@ -264,16 +249,6 @@ export default function App() {
     setCurrentTab('list');
   };
 
-  // Wastage Projects Cloud Handlers
-  const handleSaveWastageProject = async (project: UPVCWastageProject) => {
-    await FirestoreSyncService.saveWastageProject(project);
-    showToast(`✓ Cutting project "${project.projectName}" saved & synced across devices!`);
-  };
-
-  const handleDeleteWastageProject = async (id: string) => {
-    await FirestoreSyncService.deleteWastageProject(id);
-    showToast('Cutting project deleted from cloud');
-  };
 
   const handleExportExcel = () => {
     ExportVisitService.exportToExcel(visits);
@@ -397,14 +372,6 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'wastage' && (
-          <UPVCWastageCalculatorView
-            onSaveToCloud={handleSaveWastageProject}
-            cloudProjects={wastageProjects}
-            onDeleteCloudProject={handleDeleteWastageProject}
-            userEmail={user?.email}
-          />
-        )}
 
         {currentTab === 'analytics' && <AllIndiaAnalyticsView visits={visits} />}
 

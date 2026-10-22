@@ -13,7 +13,6 @@ import { getApps, initializeApp, getApp } from 'firebase/app';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { auth } from './firebaseAuth';
 import { CustomerVisit } from '../types/customerVisit';
-import { UPVCWastageProject } from '../types/upvcWastage';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
@@ -34,7 +33,6 @@ function getDbInstance() {
 export const db = getDbInstance();
 
 const VISITS_COLLECTION = 'customer_visits';
-const WASTAGE_COLLECTION = 'upvc_wastage_projects';
 
 export enum OperationType {
   CREATE = 'create',
@@ -228,85 +226,6 @@ export class FirestoreSyncService {
         handleFirestoreError(err, OperationType.WRITE, VISITS_COLLECTION);
       }
       console.error('Error pushing visits to cloud:', err);
-      throw err;
-    }
-  }
-
-  // ===================== WASTAGE PROJECTS REAL-TIME SYNC =====================
-
-  /**
-   * Subscribe to real-time uPVC Cutting & Wastage projects across devices
-   */
-  public static subscribeToWastageProjects(
-    onProjectsUpdated: (projects: UPVCWastageProject[]) => void,
-    onError?: (err: any) => void
-  ) {
-    const wastageRef = collection(db, WASTAGE_COLLECTION);
-    const q = query(wastageRef);
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const remoteProjects: UPVCWastageProject[] = [];
-        snapshot.forEach((docSnapshot) => {
-          const data = docSnapshot.data() as UPVCWastageProject;
-          remoteProjects.push({
-            ...data,
-            id: docSnapshot.id,
-          });
-        });
-
-        remoteProjects.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-        onProjectsUpdated(remoteProjects);
-      },
-      (error) => {
-        if (error.code === 'permission-denied' || error.message?.includes('permissions')) {
-          try {
-            handleFirestoreError(error, OperationType.LIST, WASTAGE_COLLECTION);
-          } catch (formattedErr) {
-            if (onError) onError(formattedErr);
-            return;
-          }
-        }
-        console.error('Real-time Wastage listener notice:', error);
-        if (onError) onError(error);
-      }
-    );
-  }
-
-  /**
-   * Save uPVC cutting project to Firestore
-   */
-  public static async saveWastageProject(project: UPVCWastageProject): Promise<void> {
-    const path = `${WASTAGE_COLLECTION}/${project.id}`;
-    try {
-      const projectRef = doc(db, WASTAGE_COLLECTION, project.id);
-      await setDoc(projectRef, {
-        ...project,
-        updatedAt: Date.now(),
-      });
-    } catch (err: any) {
-      if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
-        handleFirestoreError(err, OperationType.WRITE, path);
-      }
-      console.error('Error saving wastage project to Firestore:', err);
-      throw err;
-    }
-  }
-
-  /**
-   * Delete uPVC cutting project from Firestore
-   */
-  public static async deleteWastageProject(id: string): Promise<void> {
-    const path = `${WASTAGE_COLLECTION}/${id}`;
-    try {
-      const projectRef = doc(db, WASTAGE_COLLECTION, id);
-      await deleteDoc(projectRef);
-    } catch (err: any) {
-      if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
-        handleFirestoreError(err, OperationType.DELETE, path);
-      }
-      console.error('Error deleting wastage project from Firestore:', err);
       throw err;
     }
   }
