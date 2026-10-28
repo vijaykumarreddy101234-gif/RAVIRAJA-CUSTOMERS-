@@ -105,23 +105,44 @@ const ModalContent: React.FC<ModalContentProps> = ({
           </button>
         </div>
 
-        {/* Quick Communication Bar */}
-        <div className="flex items-center gap-2">
+        {/* Quick Communication & Share Link Bar */}
+        <div className="grid grid-cols-3 gap-2">
           <a
             href={`tel:${visit.mobileNumber}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-md shadow-sky-900/30"
+            className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-md shadow-sky-900/30"
           >
             <Phone className="w-3.5 h-3.5" />
-            <span>Call {visit.mobileNumber}</span>
+            <span>Call</span>
           </a>
           <a
             href={`https://wa.me/${cleanPhone}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md shadow-emerald-900/30"
+            className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md shadow-emerald-900/30"
           >
             <MessageCircle className="w-3.5 h-3.5" />
-            <span>WhatsApp</span>
+            <span>Chat</span>
+          </a>
+          <a
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+              `*SCRAFT uPVC Visit Report*\n` +
+              `Company: ${visit.companyName || visit.customerName}\n` +
+              `Customer: ${visit.customerName} (${visit.contactDesignation || 'Owner'})\n` +
+              `Mobile: ${visit.mobileNumber}\n` +
+              `Location: ${visit.city}, ${visit.state}\n` +
+              `Series: ${visit.interestedBrand} (${visit.quantityPerMonth})\n` +
+              `Status: ${visit.leadStatus} | PI: ${visit.piSent}\n` +
+              `Executive: ${visit.salesExecutiveName}\n` +
+              (visit.gpsLocationLink ? `📍 GPS: ${visit.gpsLocationLink}\n` : '') +
+              `Remarks: ${visit.visitRemarks || 'N/A'}`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-md shadow-indigo-900/30"
+            title="Share visit summary report & link via WhatsApp"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span>Share Link</span>
           </a>
         </div>
 

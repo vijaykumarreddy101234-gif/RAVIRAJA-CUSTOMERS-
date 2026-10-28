@@ -16,6 +16,7 @@ import {
   Building,
   FileSpreadsheet,
   Download,
+  MessageCircle,
 } from 'lucide-react';
 import { Employee, EmployeeStatus, UserRole } from '../types/employee';
 import { CustomerVisit } from '../types/customerVisit';
@@ -256,6 +257,24 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
 
                 {/* Quick Actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <a
+                    href={`https://wa.me/${emp.mobileNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                      `*SCRAFT uPVC Sales Employee Profile*\n` +
+                      `Name: ${emp.name}\n` +
+                      `Code: ${emp.employeeCode}\n` +
+                      `Designation: ${emp.designation}\n` +
+                      `Territory: ${emp.assignedDistrict}, ${emp.assignedState}\n` +
+                      `Mobile: ${emp.mobileNumber}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-400 transition text-xs flex items-center gap-1 font-semibold"
+                    title="Share employee profile via WhatsApp"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">WhatsApp</span>
+                  </a>
+
                   <button
                     type="button"
                     onClick={() => handleOpenEditModal(emp)}
