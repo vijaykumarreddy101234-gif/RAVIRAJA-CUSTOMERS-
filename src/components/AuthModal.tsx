@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Shield, Phone, Lock, CheckCircle2, AlertTriangle, ArrowRight, UserCheck, Send, Loader2 } from 'lucide-react';
+import { X, Shield, Phone, Lock, CheckCircle2, AlertTriangle, ArrowRight, UserCheck, Send, Loader2, Mail } from 'lucide-react';
 import {
   AppUser,
   loginWithMobileNumber,
+  executiveLogin,
 } from '../services/firebaseAuth';
 import { EmployeeService } from '../services/employeeService';
 
@@ -50,7 +51,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
     setTimeout(() => {
-      // Find employee by mobile number
       const emp = employees.find(
         (em) => em.mobileNumber.replace(/\s+/g, '') === cleanMobile.replace(/\s+/g, '')
       );
@@ -73,14 +73,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      // Generate 6-digit OTP
-      const mockOtp = '123456'; // Standard secure test OTP for seamless preview & production
+      const mockOtp = '123456';
       setGeneratedOtp(mockOtp);
       setOtpCode(mockOtp);
       setStep('enter_otp');
       setIsLoading(false);
       setSuccessMsg(`✓ SMS OTP successfully sent to ${emp.mobileNumber}. Code: ${mockOtp}`);
-    }, 400);
+    }, 300);
   };
 
   const handleVerifyAndLogin = (e: React.FormEvent) => {
@@ -107,7 +106,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else {
         setErrorMsg(result.errorMessage || 'Invalid OTP verification code.');
       }
-    }, 400);
+    }, 300);
+  };
+
+  const handleAdminEmailLogin = () => {
+    const adminUser = executiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
+    onMobileLoginUser(adminUser);
+    onClose();
   };
 
   return (
@@ -120,8 +125,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <Shield className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">SCRAFT Mobile Number & OTP Login</h3>
-              <p className="text-[10px] text-slate-400">Raviraja Industries • Secure SMS Gateway</p>
+              <h3 className="text-sm font-bold text-white">SCRAFT Secure Login Portal</h3>
+              <p className="text-[10px] text-slate-400">Raviraja Industries • Mobile OTP & Admin Email</p>
             </div>
           </div>
           <button
@@ -148,16 +153,84 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
+        {/* Google / Gmail Login Option */}
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={onGoogleLogin}
+            disabled={isLoggingIn}
+            className="w-full py-2.5 px-3 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 transition active:scale-95 disabled:opacity-60 shadow-md"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>{isLoggingIn ? 'Connecting to Google...' : 'Login with Gmail (Google Account)'}</span>
+          </button>
+        </div>
+
+        {/* Raviraja Admin Email Login Option (Prominent Top Banner) */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/50 via-slate-900 to-amber-950/40 border border-amber-500/50 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+              <Mail className="w-4 h-4 text-amber-400" />
+              <span>Raviraja Admin Email Login</span>
+            </span>
+            <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-slate-950">
+              ADMIN
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-300">
+            Instant administrator access using corporate email:
+          </p>
+          <button
+            type="button"
+            onClick={handleAdminEmailLogin}
+            className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-xs flex items-center justify-between transition active:scale-95 shadow-md"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-amber-700 flex items-center justify-center font-bold text-white text-xs">
+                R
+              </div>
+              <div className="text-left">
+                <span className="block leading-tight font-extrabold text-white">Raviraja Admin</span>
+                <span className="text-[10px] text-amber-100 block font-normal">ravirajaindustries@gmail.com</span>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        <div className="relative flex py-1 items-center">
+          <div className="flex-grow border-t border-slate-800"></div>
+          <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase tracking-wider font-bold">Or Mobile OTP Login</span>
+          <div className="flex-grow border-t border-slate-800"></div>
+        </div>
+
         {/* Step 1: Enter Mobile Number */}
         {step === 'enter_mobile' ? (
           <form onSubmit={handleSendOtp} className="p-4 rounded-2xl bg-slate-850 border border-slate-700/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-sky-400" />
-                <span>Step 1: Enter Mobile Number</span>
+                <span>Sales Mobile Login (+91)</span>
               </span>
               <span className="text-[9px] font-bold bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded">
-                +91 SMS OTP
+                SMS OTP
               </span>
             </div>
 
@@ -171,9 +244,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 placeholder="+91 98250 00000"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
               />
-              <span className="text-[10px] text-slate-500 block">
-                Enter your registered admin or sales mobile number to receive instant SMS OTP.
-              </span>
             </div>
 
             <button
@@ -182,7 +252,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md disabled:opacity-50"
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <span>{isLoading ? 'Sending SMS OTP...' : 'Send SMS OTP to Mobile'}</span>
+              <span>{isLoading ? 'Sending SMS OTP...' : 'Send SMS OTP'}</span>
             </button>
           </form>
         ) : (
@@ -191,7 +261,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Step 2: Enter OTP Code</span>
+                <span>Enter OTP Verification Code</span>
               </span>
               <button
                 type="button"
@@ -219,9 +289,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 placeholder="123456"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono tracking-widest text-center focus:outline-none focus:border-emerald-500"
               />
-              <span className="text-[10px] text-slate-400 block text-center">
-                Code sent via SMS gateway to <strong className="text-white">{mobileNumber}</strong>
-              </span>
             </div>
 
             <button
@@ -230,16 +297,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md disabled:opacity-50"
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-              <span>{isLoading ? 'Verifying Code...' : 'Verify OTP & Login to App'}</span>
+              <span>{isLoading ? 'Verifying Code...' : 'Verify OTP & Login'}</span>
             </button>
           </form>
         )}
 
-        {/* Quick Test Logins for Instant One-Click Verification */}
-        <div className="space-y-2 pt-2 border-t border-slate-800">
-          <span className="text-[11px] text-slate-400 font-semibold block">Quick Test Logins (Instant 1-Click Access):</span>
-          <div className="grid grid-cols-1 gap-1.5 max-h-44 overflow-y-auto no-scrollbar">
-            {employees.map((emp) => (
+        {/* Quick Test Logins */}
+        <div className="space-y-2 pt-1 border-t border-slate-800">
+          <span className="text-[11px] text-slate-400 font-semibold block">Pre-registered Sales Executives:</span>
+          <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto no-scrollbar">
+            {employees.filter(e => e.role !== 'admin').map((emp) => (
               <button
                 key={emp.id}
                 type="button"
@@ -249,27 +316,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   setGeneratedOtp(mockOtp);
                   setOtpCode(mockOtp);
                   setStep('enter_otp');
-                  setSuccessMsg(`✓ OTP generated for ${emp.name}. Click Verify & Login.`);
+                  setSuccessMsg(`✓ OTP generated for ${emp.name}. Click Verify.`);
                 }}
-                className={`p-2.5 rounded-xl border flex items-center justify-between text-left text-xs transition ${
-                  emp.role === 'admin'
-                    ? 'bg-amber-950/30 border-amber-500/40 hover:bg-amber-950/50 text-amber-200'
-                    : 'bg-slate-800/80 border-slate-700 hover:bg-slate-800 text-slate-200'
-                }`}
+                className="p-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 flex items-center justify-between text-left text-xs transition text-slate-200"
               >
                 <div>
                   <div className="flex items-center gap-1.5 font-bold">
                     <span>{emp.name}</span>
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${emp.role === 'admin' ? 'bg-amber-500 text-slate-950' : 'bg-sky-500 text-slate-950'}`}>
-                      {emp.role.toUpperCase()}
+                    <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-sky-500 text-slate-950">
+                      SALES
                     </span>
-                    {emp.status !== 'Active' && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-rose-500 text-white">
-                        {emp.status}
-                      </span>
-                    )}
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">{emp.mobileNumber} • {emp.designation}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">{emp.mobileNumber}</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
               </button>

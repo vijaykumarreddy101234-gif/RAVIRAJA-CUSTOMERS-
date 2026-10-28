@@ -24,6 +24,7 @@ import { ExportVisitService } from './services/exportVisitService';
 import { initAuth, googleSignIn, executiveLogin, logout, AppUser } from './services/firebaseAuth';
 import { FirestoreSyncService } from './services/firestoreSync';
 import { AuthModal } from './components/AuthModal';
+import { EntryLoginView } from './components/EntryLoginView';
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -337,6 +338,31 @@ export default function App() {
   };
 
   const hotCount = visits.filter((v) => v.leadStatus === 'Hot').length;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-sky-500 selection:text-slate-950">
+        {toastMessage && (
+          <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-slate-900 border border-sky-500/50 text-sky-200 text-xs px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 animate-bounce">
+            <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+            <span className="truncate flex-1 font-medium">{toastMessage}</span>
+          </div>
+        )}
+
+        <EntryLoginView
+          onGoogleLogin={handleGoogleLogin}
+          onExecutiveLogin={handleExecutiveLogin}
+          onMobileLoginUser={(loggedUser) => {
+            setUser(loggedUser);
+            VisitStorageService.setSalesExecutiveName(loggedUser.displayName || 'Raviraja Industries');
+            showToast(`✓ Welcome ${loggedUser.displayName} (${loggedUser.role.toUpperCase()})`);
+          }}
+          isLoggingIn={isLoggingIn}
+          authError={authError}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-slate-950">
