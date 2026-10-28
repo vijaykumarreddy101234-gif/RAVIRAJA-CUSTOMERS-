@@ -109,6 +109,10 @@
           "type": "string",
           "description": "Authenticated user ID of creator/assignee"
         },
+        "photos": {
+          "type": "array",
+          "description": "Attached workshop, product sample, and fabricator photos"
+        },
         "createdAt": {
           "type": "number",
           "description": "Timestamp of creation"

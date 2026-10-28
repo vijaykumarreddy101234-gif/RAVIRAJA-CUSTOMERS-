@@ -1,5 +1,5 @@
-import React from 'react';
-import { Flame, Zap, Snowflake, Trophy, Phone, MessageCircle, Building } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Flame, Zap, Snowflake, Trophy, Phone, MessageCircle, Building, User } from 'lucide-react';
 import { CustomerVisit, LeadStatus } from '../types/customerVisit';
 
 interface FabricatorLeadsViewProps {
@@ -13,6 +13,25 @@ export const FabricatorLeadsView: React.FC<FabricatorLeadsViewProps> = ({
   onSelectVisit,
   onUpdateStatus,
 }) => {
+  const [selectedExecutive, setSelectedExecutive] = useState<string>('All');
+
+  // Extract unique sales executives dynamically
+  const uniqueExecutives = useMemo(() => {
+    const set = new Set<string>();
+    visits.forEach((v) => {
+      if (v.salesExecutiveName && v.salesExecutiveName.trim()) {
+        set.add(v.salesExecutiveName.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [visits]);
+
+  // Filter visits by executive
+  const executiveFilteredVisits = useMemo(() => {
+    if (selectedExecutive === 'All') return visits;
+    return visits.filter((v) => v.salesExecutiveName === selectedExecutive);
+  }, [visits, selectedExecutive]);
+
   const columns: {
     status: LeadStatus;
     title: string;
@@ -65,14 +84,74 @@ export const FabricatorLeadsView: React.FC<FabricatorLeadsViewProps> = ({
         </div>
         <h2 className="text-xl font-extrabold text-white tracking-tight">uPVC Fabricator Leads</h2>
         <p className="text-xs text-slate-400">
-          Track fabricator inquiries from uPVC profile sample testing to confirmed production orders.
+          {executiveFilteredVisits.length} of {visits.length} leads • Conversion pipeline by sales executive
         </p>
+      </div>
+
+      {/* Sales Executive Selector: Person-Wise or All */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 space-y-1.5 shadow-sm">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-extrabold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+            <User className="w-3.5 h-3.5 text-sky-400" />
+            <span>Sales Executive:</span>
+          </span>
+          {selectedExecutive !== 'All' ? (
+            <button
+              type="button"
+              onClick={() => setSelectedExecutive('All')}
+              className="text-[11px] text-sky-400 hover:text-sky-300 font-bold hover:underline"
+            >
+              Reset to All ({visits.length})
+            </button>
+          ) : (
+            <span className="text-[10px] text-slate-500 font-medium">Viewing All Executives</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          <button
+            type="button"
+            onClick={() => setSelectedExecutive('All')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border active:scale-95 ${
+              selectedExecutive === 'All'
+                ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            All Option ({visits.length})
+          </button>
+          {uniqueExecutives.map((exec) => {
+            const count = visits.filter((v) => v.salesExecutiveName === exec).length;
+            const isSelected = selectedExecutive === exec;
+            return (
+              <button
+                key={exec}
+                type="button"
+                onClick={() => setSelectedExecutive(exec)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border flex items-center gap-1.5 active:scale-95 ${
+                  isSelected
+                    ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>{exec}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? 'bg-sky-800 text-sky-100' : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="space-y-4">
         {columns.map((col) => {
           const ColIcon = col.icon;
-          const colVisits = visits.filter((v) => v.leadStatus === col.status);
+          const colVisits = executiveFilteredVisits.filter((v) => v.leadStatus === col.status);
 
           return (
             <div

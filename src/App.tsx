@@ -192,13 +192,21 @@ export default function App() {
     }
   };
 
-  // 1. Submit New Visit: Saves to Local + Pushes to Firestore IMMEDIATELY
+  // 1. Submit New Visit: Saves to Local + Pushes to Firestore IMMEDIATELY with automatic timestamp
   const handleSubmitVisit = async (newVisit: CustomerVisit) => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const formattedSubmitTime = now.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
     const visitWithAuth: CustomerVisit = {
       ...newVisit,
       salesExecutiveName: user?.displayName || newVisit.salesExecutiveName || defaultExecutive,
       executiveEmail: user?.email || newVisit.executiveEmail || 'nagarjuna@scraft.in',
       userId: user?.uid,
+      customerVisitDate: newVisit.customerVisitDate || todayStr,
+      customerVisitTime: newVisit.customerVisitTime || timeStr,
+      submittedAt: newVisit.submittedAt || formattedSubmitTime,
     };
 
     // Save locally
@@ -214,7 +222,7 @@ export default function App() {
         console.warn('Background cloud save note:', err);
       });
 
-    showToast(`✓ Visit for "${newVisit.customerName}" saved & synced to all devices!`);
+    showToast(`✓ Visit for "${newVisit.customerName}" recorded at ${timeStr}!`);
     confetti({
       particleCount: 50,
       spread: 60,
@@ -429,6 +437,7 @@ export default function App() {
           <CustomerVisitForm
             onSubmitVisit={handleSubmitVisit}
             defaultExecutiveName={defaultExecutive}
+            user={user}
           />
         )}
 

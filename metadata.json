@@ -1,6 +1,10 @@
 {
-  "name": "SCRAFT uPVC Customer Visits & All-India Sales",
-  "description": "Official All-India field visit tracking and order management app for Raviraja Industries Pvt. Ltd. uPVC profiles (S CRAFT, SMART, OTHERS) with GPS tagging, live cloud sync, Excel & PDF reports.",
-  "requestFramePermissions": ["geolocation"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "SCRAFT uPVC Sales Tracker",
+  "description": "Official All-India field visit tracking and order management app for Raviraja Industries Pvt. Ltd. uPVC profiles with GPS tagging, live cloud sync, Excel & PDF reports.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

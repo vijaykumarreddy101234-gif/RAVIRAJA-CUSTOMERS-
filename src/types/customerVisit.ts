@@ -37,10 +37,19 @@ export interface OtherOpinionCard {
   content: string;
 }
 
+export interface VisitPhoto {
+  id: string;
+  dataUrl: string; // Base64 compressed image data URL
+  caption?: string; // Optional user label, e.g. "Workshop Front", "Sample Corner", "Visiting Card"
+  capturedAt?: string;
+}
+
 export interface CustomerVisit {
   id: string;
   salesExecutiveName: string;
   customerVisitDate: string; // YYYY-MM-DD
+  customerVisitTime?: string; // e.g. 10:45 AM
+  submittedAt?: string; // Formatted date and time of submission
   customerName: string; // Primary Owner / Customer contact name
   contactDesignation?: string; // e.g. Owner / Proprietor, Managing Director (MD), Partner, Workshop Supervisor, etc.
   mobileNumber: string;
@@ -76,6 +85,9 @@ export interface CustomerVisit {
   // Conversation Dialogue Logs & Custom Opinion Cards
   conversationLogs?: ConversationLog[];
   otherOpinionCards?: OtherOpinionCard[];
+
+  // Multiple Visit & Workshop Photos
+  photos?: VisitPhoto[];
 
   profileColor?: string;
   executiveEmail?: string;

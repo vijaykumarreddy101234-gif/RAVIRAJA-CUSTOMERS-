@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Building,
@@ -20,8 +21,14 @@ import {
   Sparkles,
   Users,
   Briefcase,
+  Clock,
+  Camera,
+  Image as ImageIcon,
+  Eye,
+  Plus,
+  Loader2,
 } from 'lucide-react';
-import { CustomerVisit, LeadStatus, PISentStatus } from '../types/customerVisit';
+import { CustomerVisit, LeadStatus, PISentStatus, VisitPhoto } from '../types/customerVisit';
 
 interface CustomerVisitDetailModalProps {
   visit: CustomerVisit | null;
@@ -38,6 +45,54 @@ interface ModalContentProps {
   onDeleteVisit: (id: string) => void;
 }
 
+/**
+ * Compresses visit/workshop photos to crisp, lightweight data URLs (max 800px, JPEG 0.75)
+ */
+function compressPhotoToDataUrl(file: File, maxDim: number = 800, quality: number = 0.75): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      };
+      img.onerror = () => reject(new Error('Failed to parse uploaded photo.'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Failed to read photo file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 const ModalContent: React.FC<ModalContentProps> = ({
   visit,
   onClose,
@@ -49,6 +104,51 @@ const ModalContent: React.FC<ModalContentProps> = ({
   const [followUpDate, setFollowUpDate] = useState(visit.followUpDate || '');
   const [remarks, setRemarks] = useState(visit.visitRemarks || '');
 
+  // Attached Photos State
+  const [photos, setPhotos] = useState<VisitPhoto[]>(visit.photos || []);
+  const [previewPhotoModal, setPreviewPhotoModal] = useState<VisitPhoto | null>(null);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoFilesSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsProcessingPhotos(true);
+    const newPhotos: VisitPhoto[] = [];
+    const filesArray = Array.from(files);
+
+    for (let i = 0; i < filesArray.length; i++) {
+      const file = filesArray[i];
+      try {
+        const dataUrl = await compressPhotoToDataUrl(file, 800, 0.75);
+        const timeNow = new Date().toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+
+        newPhotos.push({
+          id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          dataUrl,
+          caption: '',
+          capturedAt: timeNow,
+        });
+      } catch (err: any) {
+        console.error('Photo processing failed:', err);
+      }
+    }
+
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    setIsProcessingPhotos(false);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleRemovePhoto = (photoId: string) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+  };
+
   const handleSave = () => {
     onUpdateVisit({
       ...visit,
@@ -56,6 +156,7 @@ const ModalContent: React.FC<ModalContentProps> = ({
       piSent,
       followUpDate,
       visitRemarks: remarks,
+      photos: photos.length > 0 ? photos : undefined,
       updatedAt: Date.now(),
     });
     onClose();
@@ -93,7 +194,13 @@ const ModalContent: React.FC<ModalContentProps> = ({
                 <User className="w-3 h-3 text-sky-400" />
                 <span>Dealt by Sales Executive: <strong className="text-white">{visit.salesExecutiveName}</strong></span>
               </span>
-              <span className="text-[11px] text-slate-400">Date: {visit.customerVisitDate}</span>
+              <span className="text-[11px] text-slate-300 flex items-center gap-1 font-medium bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800">
+                <Clock className="w-3 h-3 text-cyan-400" />
+                <span>{visit.customerVisitDate}</span>
+                {visit.customerVisitTime && (
+                  <span className="text-cyan-300 font-mono font-semibold">({visit.customerVisitTime})</span>
+                )}
+              </span>
             </div>
           </div>
           <button
@@ -450,6 +557,105 @@ const ModalContent: React.FC<ModalContentProps> = ({
           </div>
         )}
 
+        {/* Attached Photos & Workshop Gallery Section */}
+        <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 text-xs">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-slate-800">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Attached Photos ({photos.length})</span>
+            </span>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoFilesSelect}
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={cameraInputRef}
+                onChange={handlePhotoFilesSelect}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={isProcessingPhotos}
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold flex items-center gap-1 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                title="Capture with camera"
+              >
+                <Camera className="w-3 h-3 text-emerald-400" />
+                <span className="hidden sm:inline">Camera</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessingPhotos}
+                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                {isProcessingPhotos ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Plus className="w-3 h-3" />
+                )}
+                <span>+ Add</span>
+              </button>
+            </div>
+          </div>
+
+          {photos.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+              {photos.map((photo, idx) => (
+                <div
+                  key={photo.id || idx}
+                  className="relative group rounded-xl overflow-hidden bg-slate-900 border border-slate-800"
+                >
+                  <img
+                    src={photo.dataUrl}
+                    alt={photo.caption || `Visit Photo ${idx + 1}`}
+                    className="w-full aspect-video object-cover group-hover:scale-105 transition cursor-pointer"
+                    onClick={() => setPreviewPhotoModal(photo)}
+                  />
+                  <div className="absolute top-1 right-1 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewPhotoModal(photo)}
+                      className="p-1 rounded bg-black/70 hover:bg-black text-white transition cursor-pointer"
+                      title="Enlarge"
+                    >
+                      <Eye className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(photo.id)}
+                      className="p-1 rounded bg-rose-950/80 hover:bg-rose-600 text-white transition cursor-pointer"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {photo.caption && (
+                    <div className="p-1.5 bg-slate-950/90 border-t border-slate-800 text-[10px] text-slate-300 truncate">
+                      {photo.caption}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-500 text-[11px] italic py-1">
+              No photos attached to this visit entry yet. Click "+ Add" or "Camera" above to upload.
+            </p>
+          )}
+        </div>
+
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">
           <button
@@ -476,6 +682,63 @@ const ModalContent: React.FC<ModalContentProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Fullscreen Photo Lightbox Modal (Portal) */}
+      {previewPhotoModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setPreviewPhotoModal(null);
+            }}
+          >
+            <div className="relative max-w-2xl w-full bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-white">
+                    {previewPhotoModal.caption || `${visit.customerName} - Photo`}
+                  </span>
+                  {previewPhotoModal.capturedAt && (
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      ({previewPhotoModal.capturedAt})
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPhotoModal(null)}
+                  className="p-1 rounded-full bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="max-h-[72vh] flex items-center justify-center overflow-hidden rounded-2xl bg-black">
+                <img
+                  src={previewPhotoModal.dataUrl}
+                  alt={previewPhotoModal.caption || 'Visit Photo'}
+                  className="max-h-[72vh] w-auto max-w-full object-contain"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] text-slate-400">
+                  {previewPhotoModal.caption || 'No caption provided'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPhotoModal(null)}
+                  className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

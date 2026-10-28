@@ -57,6 +57,7 @@ export class ExportVisitService {
       return {
         'Sales Executive Name': v.salesExecutiveName,
         'Customer Visit Date': v.customerVisitDate,
+        'Visit Time': v.customerVisitTime || '',
         'Customer / Owner Name': v.customerName,
         'Designation / Role': v.contactDesignation || 'Owner / Proprietor',
         'Mobile Number': v.mobileNumber,
@@ -82,6 +83,8 @@ export class ExportVisitService {
         'Visit Remarks': v.visitRemarks,
         'Conversation Dialogue Logs': conversationText,
         'Other Opinion / Custom Cards': opinionText,
+        'Attached Photos Count':
+          v.photos && v.photos.length > 0 ? `${v.photos.length} Photo(s)` : 'None',
       };
     });
 
@@ -307,7 +310,7 @@ export class ExportVisitService {
       const locationBlock = `${v.city}, ${v.state}${gpsLink ? '\nGPS Tag:\n' + gpsLink : ''}`;
 
       return [
-        v.customerVisitDate,
+        v.customerVisitTime ? `${v.customerVisitDate}\n${v.customerVisitTime}` : v.customerVisitDate,
         customerBlock,
         v.mobileNumber,
         v.customerType,

@@ -28,6 +28,24 @@ export const CustomerVisitCalendarView: React.FC<CustomerVisitCalendarViewProps>
   const [selectedDateStr, setSelectedDateStr] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  const [selectedExecutive, setSelectedExecutive] = useState<string>('All');
+
+  // Extract all unique sales executives dynamically
+  const uniqueExecutives = useMemo(() => {
+    const set = new Set<string>();
+    visits.forEach((v) => {
+      if (v.salesExecutiveName && v.salesExecutiveName.trim()) {
+        set.add(v.salesExecutiveName.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [visits]);
+
+  // Filter visits by sales executive
+  const executiveFilteredVisits = useMemo(() => {
+    if (selectedExecutive === 'All') return visits;
+    return visits.filter((v) => v.salesExecutiveName === selectedExecutive);
+  }, [visits, selectedExecutive]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-11
@@ -52,13 +70,13 @@ export const CustomerVisitCalendarView: React.FC<CustomerVisitCalendarViewProps>
   // Map visits by date string YYYY-MM-DD
   const visitsByDate = useMemo(() => {
     const map: Record<string, CustomerVisit[]> = {};
-    visits.forEach((v) => {
+    executiveFilteredVisits.forEach((v) => {
       const d = v.customerVisitDate;
       if (!map[d]) map[d] = [];
       map[d].push(v);
     });
     return map;
-  }, [visits]);
+  }, [executiveFilteredVisits]);
 
   const selectedDateVisits = visitsByDate[selectedDateStr] || [];
 
@@ -74,7 +92,7 @@ export const CustomerVisitCalendarView: React.FC<CustomerVisitCalendarViewProps>
             <span>Visit Calendar & Schedule</span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Track daily fabricator visits and sales executive schedules across India
+            {executiveFilteredVisits.length} of {visits.length} visits • Daily schedule & follow-ups
           </p>
         </div>
 
@@ -98,6 +116,66 @@ export const CustomerVisitCalendarView: React.FC<CustomerVisitCalendarViewProps>
           >
             <ChevronRight className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+
+      {/* Sales Executive Selector: Person-Wise or All */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 space-y-1.5 shadow-sm">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-extrabold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+            <User className="w-3.5 h-3.5 text-sky-400" />
+            <span>Sales Executive:</span>
+          </span>
+          {selectedExecutive !== 'All' ? (
+            <button
+              type="button"
+              onClick={() => setSelectedExecutive('All')}
+              className="text-[11px] text-sky-400 hover:text-sky-300 font-bold hover:underline"
+            >
+              Reset to All ({visits.length})
+            </button>
+          ) : (
+            <span className="text-[10px] text-slate-500 font-medium">Viewing All Executives</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          <button
+            type="button"
+            onClick={() => setSelectedExecutive('All')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border active:scale-95 ${
+              selectedExecutive === 'All'
+                ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            All Option ({visits.length})
+          </button>
+          {uniqueExecutives.map((exec) => {
+            const count = visits.filter((v) => v.salesExecutiveName === exec).length;
+            const isSelected = selectedExecutive === exec;
+            return (
+              <button
+                key={exec}
+                type="button"
+                onClick={() => setSelectedExecutive(exec)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border flex items-center gap-1.5 active:scale-95 ${
+                  isSelected
+                    ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>{exec}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? 'bg-sky-800 text-sky-100' : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
