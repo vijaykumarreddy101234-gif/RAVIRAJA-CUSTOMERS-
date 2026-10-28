@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { X, Shield, User, Mail, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
-import { AppUser } from '../services/firebaseAuth';
+import { X, Shield, Phone, Lock, CheckCircle2, AlertTriangle, ArrowRight, UserCheck } from 'lucide-react';
+import { AppUser, loginWithMobileNumber } from '../services/firebaseAuth';
+import { EmployeeService } from '../services/employeeService';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGoogleLogin: () => Promise<void>;
   onExecutiveLogin: (email: string, name: string) => void;
+  onMobileLoginUser: (user: AppUser) => void;
   isLoggingIn: boolean;
   authError: { code?: string; message?: string } | null;
 }
@@ -16,28 +18,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onGoogleLogin,
   onExecutiveLogin,
+  onMobileLoginUser,
   isLoggingIn,
   authError,
 }) => {
-  const [executiveName, setExecutiveName] = useState('Raviraja Industries');
-  const [executiveEmail, setExecutiveEmail] = useState('ravirajaindustries@gmail.com');
+  const [mobileNumber, setMobileNumber] = useState('+91 ');
+  const [otpCode, setOtpCode] = useState('123456');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleCustomLogin = (e: React.FormEvent) => {
+  const handleMobileLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (executiveEmail.trim()) {
-      onExecutiveLogin(executiveEmail.trim(), executiveName.trim() || 'Sales Executive');
-      onClose();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const result = loginWithMobileNumber(mobileNumber, otpCode);
+    if (result.success && result.user) {
+      setSuccessMsg(`Successfully logged in as ${result.user.displayName} (${result.user.role.toUpperCase()})`);
+      setTimeout(() => {
+        onMobileLoginUser(result.user!);
+        onClose();
+      }, 600);
+    } else {
+      setErrorMsg(result.errorMessage || 'Login failed. Please check mobile number or contact admin.');
     }
   };
 
-  const isDomainError = authError?.code === 'auth/unauthorized-domain';
-  const isPopupError = authError?.code === 'auth/popup-blocked' || authError?.code === 'auth/popup-closed-by-user';
+  const employees = EmployeeService.getEmployees();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-5 shadow-2xl text-white space-y-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-5 shadow-2xl text-white space-y-4 max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Header */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2">
@@ -45,8 +58,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <Shield className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Connect Sales Account</h3>
-              <p className="text-[10px] text-slate-400">Raviraja Industries • SCRAFT uPVC Profiles</p>
+              <h3 className="text-sm font-bold text-white">SCRAFT Secure Mobile Login</h3>
+              <p className="text-[10px] text-slate-400">Multi-User Permission & Access System</p>
             </div>
           </div>
           <button
@@ -58,119 +71,113 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {/* Error Notice if any */}
-        {authError && (
-          <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-xs space-y-1.5">
-            <div className="flex items-center gap-1.5 text-amber-300 font-bold">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>Firebase Auth Notice</span>
-            </div>
-            <p className="text-[11px] text-amber-200/90 leading-relaxed">
-              {isDomainError
-                ? 'Firebase requires the dynamic preview domain to be in authorized domains for Google popup. You can instantly connect via Raviraja Executive Profile below!'
-                : isPopupError
-                ? 'The Google sign-in popup was closed or blocked by your browser. Use the 1-Click Executive Login below to proceed immediately!'
-                : authError.message || 'Firebase sign-in error.'}
-            </p>
+        {/* Error / Success Banners */}
+        {errorMsg && (
+          <div className="p-3 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-xs flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <span className="text-rose-200">{errorMsg}</span>
           </div>
         )}
 
-        {/* Option 1: 1-Click Instant Login as Raviraja Industries */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-950/40 to-slate-800/80 border border-sky-500/30 space-y-2.5">
+        {successMsg && (
+          <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-xs flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <span className="text-emerald-200">{successMsg}</span>
+          </div>
+        )}
+
+        {/* 1. Mobile Number & OTP Login Form (Primary) */}
+        <form onSubmit={handleMobileLoginSubmit} className="p-4 rounded-2xl bg-slate-850 border border-slate-700/80 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-sky-300">Quick 1-Click Login</span>
-            <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-sky-500/20 text-sky-300">
-              RECOMMENDED
+            <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-sky-400" />
+              <span>Mobile Number (+91) & OTP</span>
+            </span>
+            <span className="text-[9px] font-bold bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded">
+              SECURE
             </span>
           </div>
-          <p className="text-[11px] text-slate-300">
-            Sign in directly as the verified company account:
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              onExecutiveLogin('ravirajaindustries@gmail.com', 'Raviraja Industries');
-              onClose();
-            }}
-            className="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-between transition active:scale-95 shadow-md"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-sky-700 flex items-center justify-center font-bold text-xs">
-                R
-              </div>
-              <div className="text-left">
-                <span className="block leading-tight font-bold">Raviraja Industries</span>
-                <span className="text-[10px] text-sky-200 block font-normal">ravirajaindustries@gmail.com</span>
-              </div>
-            </div>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
 
-        {/* Option 2: Try Firebase Google Sign-In with Popup */}
-        <div className="space-y-1.5">
-          <span className="text-[11px] text-slate-400 font-semibold block">Or connect via Google OAuth:</span>
-          <button
-            type="button"
-            onClick={onGoogleLogin}
-            disabled={isLoggingIn}
-            className="w-full py-2.5 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-60 shadow-sm"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>{isLoggingIn ? 'Connecting to Google...' : 'Sign in with Google Popup'}</span>
-          </button>
-        </div>
-
-        {/* Option 3: Custom Sales Executive Name Form */}
-        <form onSubmit={handleCustomLogin} className="pt-2 border-t border-slate-800 space-y-2 text-xs">
-          <span className="text-[11px] text-slate-400 font-semibold block">Or Custom Executive Details:</span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-2 text-xs">
             <div>
-              <label className="text-[10px] text-slate-400 block mb-0.5">Executive Name</label>
+              <label className="text-[10px] text-slate-400 block mb-1">Registered Indian Mobile Number</label>
               <input
                 type="text"
-                value={executiveName}
-                onChange={(e) => setExecutiveName(e.target.value)}
-                placeholder="Executive Name"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                required
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                placeholder="+91 98250 00000"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
               />
             </div>
+
             <div>
-              <label className="text-[10px] text-slate-400 block mb-0.5">Executive Email</label>
+              <label className="text-[10px] text-slate-400 block mb-1">OTP Verification Code</label>
               <input
-                type="email"
+                type="text"
                 required
-                value={executiveEmail}
-                onChange={(e) => setExecutiveEmail(e.target.value)}
-                placeholder="name@raviraja.com"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value)}
+                placeholder="123456"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono tracking-widest focus:outline-none focus:border-sky-500"
               />
+              <span className="text-[10px] text-slate-500 mt-1 block">
+                (Demo OTP: enter any 4-6 digits e.g. 123456)
+              </span>
             </div>
           </div>
+
           <button
             type="submit"
-            className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition"
+            className="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
           >
-            Save & Connect Executive
+            <UserCheck className="w-4 h-4" />
+            <span>Verify OTP & Login</span>
           </button>
         </form>
+
+        {/* 2. Quick Demo Accounts Selector for Testing */}
+        <div className="space-y-2 pt-2 border-t border-slate-800">
+          <span className="text-[11px] text-slate-400 font-semibold block">Quick Test Logins (Pre-registered):</span>
+          <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
+            {employees.map((emp) => (
+              <button
+                key={emp.id}
+                type="button"
+                onClick={() => {
+                  setMobileNumber(emp.mobileNumber);
+                  setOtpCode('123456');
+                  const res = loginWithMobileNumber(emp.mobileNumber, '123456');
+                  if (res.success && res.user) {
+                    onMobileLoginUser(res.user);
+                    onClose();
+                  }
+                }}
+                className={`p-2.5 rounded-xl border flex items-center justify-between text-left text-xs transition ${
+                  emp.role === 'admin'
+                    ? 'bg-amber-950/30 border-amber-500/40 hover:bg-amber-950/50 text-amber-200'
+                    : 'bg-slate-800/80 border-slate-700 hover:bg-slate-800 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span>{emp.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${emp.role === 'admin' ? 'bg-amber-500 text-slate-950' : 'bg-sky-500 text-slate-950'}`}>
+                      {emp.role.toUpperCase()}
+                    </span>
+                    {emp.status !== 'Active' && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-rose-500 text-white">
+                        {emp.status}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">{emp.mobileNumber} • {emp.designation}</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

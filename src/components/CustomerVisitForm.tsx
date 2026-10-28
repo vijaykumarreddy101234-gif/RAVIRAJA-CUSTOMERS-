@@ -19,12 +19,21 @@ import {
   Loader2,
   Crosshair,
   Check,
+  Users,
+  Plus,
+  Trash2,
+  Briefcase,
+  FileText,
+  MessageCircle,
 } from 'lucide-react';
 import {
   CustomerVisit,
   CustomerType,
   LeadStatus,
   PISentStatus,
+  AdditionalContact,
+  ConversationLog,
+  OtherOpinionCard,
 } from '../types/customerVisit';
 import {
   INDIAN_STATES,
@@ -34,7 +43,11 @@ import {
   UPVC_BRANDS,
   UPVC_SERIES_OPTIONS,
   UPVC_COMPETITOR_BRANDS,
+  POPULAR_MULTI_BRAND_PRESETS,
+  COMMON_DESIGNATIONS,
+  ADDITIONAL_CONTACT_ROLES,
 } from '../data/indiaLocations';
+
 
 interface CustomerVisitFormProps {
   onSubmitVisit: (visit: CustomerVisit) => void;
@@ -50,7 +63,9 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
     new Date().toISOString().split('T')[0]
   );
   const [customerName, setCustomerName] = useState('');
+  const [contactDesignation, setContactDesignation] = useState('Owner / Proprietor');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [additionalContacts, setAdditionalContacts] = useState<AdditionalContact[]>([]);
   const [companyName, setCompanyName] = useState('');
   const [gstNumber, setGstNumber] = useState('');
   const [customerType, setCustomerType] = useState<CustomerType>('Fabricator');
@@ -58,6 +73,34 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
   const [district, setDistrict] = useState('Ahmedabad');
   const [city, setCity] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+
+  const handleAddAdditionalContact = () => {
+    setAdditionalContacts((prev) => [
+      ...prev,
+      {
+        id: `contact-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: '',
+        designation: 'Workshop Supervisor',
+        mobileNumber: '',
+        notes: '',
+      },
+    ]);
+  };
+
+  const handleUpdateAdditionalContact = (
+    id: string,
+    field: keyof AdditionalContact,
+    value: string
+  ) => {
+    setAdditionalContacts((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  };
+
+  const handleRemoveAdditionalContact = (id: string) => {
+    setAdditionalContacts((prev) => prev.filter((c) => c.id !== id));
+  };
+
 
   // GPS Location Tracking
   const [gpsLocationLink, setGpsLocationLink] = useState('');
@@ -76,12 +119,86 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
   const [brand, setBrand] = useState<'S CRAFT' | 'SMART' | 'OTHERS'>('S CRAFT');
   const [customBrand, setCustomBrand] = useState('');
 
-  const [currentBrand, setCurrentBrand] = useState('');
+  // Multi-brand selection: fabricators often use 3 to 5 brands simultaneously
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [customBrandInput, setCustomBrandInput] = useState('');
+
+  const toggleBrand = (b: string) => {
+    setSelectedBrands((prev) =>
+      prev.includes(b) ? prev.filter((item) => item !== b) : [...prev, b]
+    );
+  };
+
+  const addCustomBrand = () => {
+    const trimmed = customBrandInput.trim();
+    if (trimmed && !selectedBrands.includes(trimmed)) {
+      setSelectedBrands((prev) => [...prev, trimmed]);
+      setCustomBrandInput('');
+    }
+  };
+
+  const removeBrand = (b: string) => {
+    setSelectedBrands((prev) => prev.filter((item) => item !== b));
+  };
+
+  const applyPreset = (presetBrands: string[]) => {
+    setSelectedBrands(presetBrands);
+  };
+
   const [quantityPerMonth, setQuantityPerMonth] = useState('');
   const [piSent, setPiSent] = useState<PISentStatus>('No');
   const [leadStatus, setLeadStatus] = useState<LeadStatus>('Hot');
   const [followUpDate, setFollowUpDate] = useState('');
   const [visitRemarks, setVisitRemarks] = useState('');
+
+  // Conversation Dialogue Logger & Other Opinion Cards
+  const [conversationLogs, setConversationLogs] = useState<ConversationLog[]>([]);
+  const [otherOpinionCards, setOtherOpinionCards] = useState<OtherOpinionCard[]>([]);
+
+  const handleAddConversationLog = () => {
+    setConversationLogs((prev) => [
+      ...prev,
+      {
+        id: `conv-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        speakerName: customerName || 'Customer / Fabricator',
+        speakerRole: 'Fabricator',
+        message: '',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+  };
+
+  const handleUpdateConversationLog = (id: string, field: keyof ConversationLog, value: string) => {
+    setConversationLogs((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  };
+
+  const handleRemoveConversationLog = (id: string) => {
+    setConversationLogs((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const handleAddOtherOpinionCard = () => {
+    setOtherOpinionCards((prev) => [
+      ...prev,
+      {
+        id: `opinion-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        title: 'Competitor / Market Insight',
+        content: '',
+      },
+    ]);
+  };
+
+  const handleUpdateOtherOpinionCard = (id: string, field: 'title' | 'content', value: string) => {
+    setOtherOpinionCards((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, [field]: value } : o))
+    );
+  };
+
+  const handleRemoveOtherOpinionCard = (id: string) => {
+    setOtherOpinionCards((prev) => prev.filter((o) => o.id !== id));
+  };
+
   const [formError, setFormError] = useState<string | null>(null);
 
   // Auto detect current GPS Location
@@ -171,7 +288,17 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
       salesExecutiveName: salesExecutiveName.trim() || 'Raviraja uPVC Sales Executive',
       customerVisitDate,
       customerName: customerName.trim(),
+      contactDesignation: contactDesignation.trim() || 'Owner / Proprietor',
       mobileNumber: mobileNumber.trim(),
+      additionalContacts: additionalContacts
+        .filter((c) => c.name.trim() || c.mobileNumber.trim())
+        .map((c) => ({
+          ...c,
+          name: c.name.trim(),
+          designation: c.designation.trim() || 'Workshop Supervisor',
+          mobileNumber: c.mobileNumber.trim(),
+          notes: c.notes?.trim() || undefined,
+        })),
       companyName: companyName.trim() || customerName.trim(),
       gstNumber: gstNumber.trim().toUpperCase() || undefined,
       customerType,
@@ -191,12 +318,28 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
       brand: effectiveBrand,
       interestedBrand: effectiveBrand,
 
-      currentBrand: currentBrand.trim() || 'Local/Competitor',
+      currentBrand:
+        selectedBrands.length > 0
+          ? selectedBrands.join(', ')
+          : 'Local / Unspecified Extruder',
+      currentBrands: selectedBrands.length > 0 ? selectedBrands : undefined,
       quantityPerMonth: quantityPerMonth.trim() || 'Pending Estimation',
       piSent,
       leadStatus,
       followUpDate,
       visitRemarks: visitRemarks.trim(),
+      conversationLogs:
+        conversationLogs.filter((c) => c.message.trim()).length > 0
+          ? conversationLogs.map((c) => ({ ...c, message: c.message.trim() }))
+          : undefined,
+      otherOpinionCards:
+        otherOpinionCards.filter((o) => o.content.trim()).length > 0
+          ? otherOpinionCards.map((o) => ({
+              ...o,
+              title: o.title.trim() || 'Custom Opinion',
+              content: o.content.trim(),
+            }))
+          : undefined,
       createdAt: Date.now(),
     };
 
@@ -204,7 +347,9 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
 
     // Reset customer-specific fields for next visit entry
     setCustomerName('');
+    setContactDesignation('Owner / Proprietor');
     setMobileNumber('');
+    setAdditionalContacts([]);
     setCompanyName('');
     setGstNumber('');
     setCity('');
@@ -216,11 +361,14 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
     setGpsStatusMsg(null);
     setBrand('S CRAFT');
     setCustomBrand('');
-    setCurrentBrand('');
+    setSelectedBrands([]);
+    setCustomBrandInput('');
     setQuantityPerMonth('');
     setVisitRemarks('');
     setFollowUpDate('');
     setPiSent('No');
+    setConversationLogs([]);
+    setOtherOpinionCards([]);
   };
 
   const districtList = POPULAR_DISTRICTS[state] || [];
@@ -282,11 +430,17 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
         </div>
 
         {/* Section 2: Customer & Company Profile */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 pb-2 border-b border-slate-800">
-            <Building className="w-3.5 h-3.5 text-amber-400" />
-            <span>2. Customer & Fabricator Enterprise Profile</span>
-          </h3>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3.5 shadow-sm">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Building className="w-3.5 h-3.5 text-amber-400" />
+              <span>2. Customer & Fabricator Enterprise Profile</span>
+            </h3>
+            <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+              <Users className="w-3 h-3 text-sky-400" />
+              Multi-Contact Unit Support
+            </span>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
@@ -306,6 +460,33 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
               </div>
             </div>
 
+            {/* Designation / Role for Owner/Customer */}
+            <div>
+              <label className="text-slate-400 font-semibold flex items-center justify-between mb-1">
+                <span className="flex items-center gap-1">
+                  <Briefcase className="w-3 h-3 text-sky-400" />
+                  <span>Customer / Owner Designation</span>
+                </span>
+                <span className="text-[10px] text-slate-500">e.g. Owner, MD, Partner</span>
+              </label>
+              <div className="relative">
+                <Briefcase className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  list="common-designations-list"
+                  value={contactDesignation}
+                  onChange={(e) => setContactDesignation(e.target.value)}
+                  placeholder="Owner / Proprietor, Managing Director, Partner..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500 font-medium"
+                />
+                <datalist id="common-designations-list">
+                  {COMMON_DESIGNATIONS.map((d) => (
+                    <option key={d} value={d} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
             <div>
               <label className="text-slate-400 font-semibold block mb-1">
                 Customer Mobile Number <span className="text-rose-400">*</span>
@@ -318,7 +499,7 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value)}
                   placeholder="+91 98250 00000"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500 font-medium"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500 font-medium font-mono"
                 />
               </div>
             </div>
@@ -361,7 +542,7 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
               </div>
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="text-slate-400 font-semibold block mb-1">Customer Type</label>
               <select
                 value={customerType}
@@ -375,6 +556,149 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Sub-Section: Additional Unit Personnel (Directors, Supervisors, Partners) */}
+          <div className="pt-3 border-t border-slate-800/90 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Additional Unit Key Personnel (Directors & Supervisors)</span>
+                  {additionalContacts.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      {additionalContacts.length} Added
+                    </span>
+                  )}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Add 2 or more partners, directors, or workshop supervisors who run the unit
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddAdditionalContact}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-sm active:scale-95 shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Add Director / Supervisor</span>
+              </button>
+            </div>
+
+            {additionalContacts.length === 0 ? (
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-dashed border-slate-800 text-xs text-slate-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <span>
+                  Unit run by multiple people? Click <strong className="text-sky-300">+ Add Director / Supervisor</strong> to record workshop heads, co-directors, or procurement managers.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddAdditionalContact}
+                  className="text-xs font-bold text-sky-400 hover:text-sky-300 underline shrink-0"
+                >
+                  + Add Person
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2.5 pt-1">
+                {additionalContacts.map((contact, index) => (
+                  <div
+                    key={contact.id}
+                    className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700/80 space-y-2.5 transition"
+                  >
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-800/60">
+                      <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-sky-500/20 text-sky-300 text-[10px] flex items-center justify-center font-bold">
+                          {index + 1}
+                        </span>
+                        <span>Key Personnel #{index + 1}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAdditionalContact(contact.id)}
+                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition text-xs flex items-center gap-1"
+                        title="Remove this contact"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="text-[10px]">Remove</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                          Full Name
+                        </label>
+                        <div className="relative">
+                          <User className="w-3 h-3 text-slate-500 absolute left-2.5 top-2.5" />
+                          <input
+                            type="text"
+                            value={contact.name}
+                            onChange={(e) =>
+                              handleUpdateAdditionalContact(contact.id, 'name', e.target.value)
+                            }
+                            placeholder="e.g. Ramesh Patel / Dinesh Shah"
+                            className="w-full bg-slate-800/90 border border-slate-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                          Role / Designation
+                        </label>
+                        <select
+                          value={contact.designation}
+                          onChange={(e) =>
+                            handleUpdateAdditionalContact(contact.id, 'designation', e.target.value)
+                          }
+                          className="w-full bg-slate-800/90 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500 font-medium"
+                        >
+                          {ADDITIONAL_CONTACT_ROLES.map((role) => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                          Mobile Number (Direct Line)
+                        </label>
+                        <div className="relative">
+                          <Phone className="w-3 h-3 text-slate-500 absolute left-2.5 top-2.5" />
+                          <input
+                            type="tel"
+                            value={contact.mobileNumber}
+                            onChange={(e) =>
+                              handleUpdateAdditionalContact(contact.id, 'mobileNumber', e.target.value)
+                            }
+                            placeholder="+91 98250 00000"
+                            className="w-full bg-slate-800/90 border border-slate-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                          Responsibility / Notes (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={contact.notes || ''}
+                          onChange={(e) =>
+                            handleUpdateAdditionalContact(contact.id, 'notes', e.target.value)
+                          }
+                          placeholder="e.g. Workshop supervisor for 3-track sliding, cutting"
+                          className="w-full bg-slate-800/90 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -700,28 +1024,162 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+          {/* Multi-Brand Switcher & Selector */}
+          <div className="space-y-3 pt-3 border-t border-slate-800/80">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-slate-200 font-bold text-xs flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-sky-400" />
+                    <span>Current uPVC Brand(s) Used by Fabricator</span>
+                  </label>
+                  {selectedBrands.length >= 3 && selectedBrands.length <= 5 ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span>{selectedBrands.length} Brands Active (Multi-Brand Unit)</span>
+                    </span>
+                  ) : selectedBrands.length > 0 ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      {selectedBrands.length} Brand{selectedBrands.length > 1 ? 's' : ''} Selected
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-amber-300 bg-amber-950/60 border border-amber-800/50">
+                      Select 3 to 5 brands
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Fabricators in India typically use 3 to 5 profile brands to cater to different budget tiers. Tap the switches below to select all brands currently fabricated.
+                </p>
+              </div>
 
-            <div>
-              <label className="text-slate-400 font-semibold block mb-1">
-                Current uPVC Brand Used by Fabricator
-              </label>
-              <input
-                type="text"
-                list="competitor-list"
-                value={currentBrand}
-                onChange={(e) => setCurrentBrand(e.target.value)}
-                placeholder="e.g. Kommerling, Prominance, Veka, Aluplast"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500"
-              />
-              <datalist id="competitor-list">
-                {UPVC_COMPETITOR_BRANDS.map((c) => (
-                  <option key={c} value={c} />
+              {/* Quick Presets for 3 to 5 Brands */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-slate-500 font-medium">Quick Presets:</span>
+                {POPULAR_MULTI_BRAND_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => applyPreset(preset.brands)}
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-sky-950 text-slate-300 hover:text-sky-300 border border-slate-700 hover:border-sky-700 transition"
+                    title={`Apply: ${preset.brands.join(', ')}`}
+                  >
+                    {preset.name}
+                  </button>
                 ))}
-              </datalist>
+                {selectedBrands.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBrands([])}
+                    className="text-[10px] text-rose-400 hover:text-rose-300 px-2 py-0.5 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 transition"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="sm:col-span-2">
+            {/* Selected Brands Active Pills Area */}
+            {selectedBrands.length > 0 ? (
+              <div className="bg-slate-900/90 rounded-xl p-3 border border-sky-900/40 shadow-inner">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold mb-2">
+                  <span className="flex items-center gap-1.5 text-sky-300 font-bold">
+                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Selected Competitor Brands ({selectedBrands.length}):</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500">Click &times; on any chip to remove</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedBrands.map((b) => (
+                    <span
+                      key={b}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-950/90 text-sky-200 border border-sky-500/50 shadow-sm"
+                    >
+                      <Check className="w-3 h-3 text-sky-400 shrink-0" />
+                      <span>{b}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeBrand(b)}
+                        className="text-slate-400 hover:text-rose-300 ml-1 rounded p-0.5 hover:bg-rose-500/20 transition"
+                        title={`Remove ${b}`}
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-800/40 border border-dashed border-slate-700/80 rounded-xl p-3 text-center text-xs text-slate-400">
+                No competitor brands selected. Tap brand switches below (e.g. Kommerling, Prominance, Veka) or type custom brand name.
+              </div>
+            )}
+
+            {/* Clickable Brand Switches (Multi-Select Pills) */}
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
+                Switch Brand On / Off (Tap to select multiple brands):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {UPVC_COMPETITOR_BRANDS.map((comp) => {
+                  const isSelected = selectedBrands.includes(comp);
+                  return (
+                    <button
+                      key={comp}
+                      type="button"
+                      onClick={() => toggleBrand(comp)}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-400 shadow-sm shadow-sky-900/30 font-bold ring-1 ring-sky-400'
+                          : 'bg-slate-800/80 hover:bg-slate-750 text-slate-300 border-slate-700 hover:border-slate-600'
+                      }`}
+                    >
+                      {isSelected ? (
+                        <Check className="w-3 h-3 text-white shrink-0" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                      )}
+                      <span>{comp}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Add Custom / Other Brand */}
+            <div className="pt-1">
+              <label className="text-slate-400 font-semibold block mb-1 text-[11px]">
+                + Add Other Brand / Local Extruder Name
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customBrandInput}
+                  onChange={(e) => setCustomBrandInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomBrand();
+                    }
+                  }}
+                  placeholder="Type other brand (e.g. Plastone, Koemmerling, Torfenster) and press Add"
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                />
+                <button
+                  type="button"
+                  onClick={addCustomBrand}
+                  disabled={!customBrandInput.trim()}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-40 disabled:hover:bg-sky-600 transition flex items-center gap-1.5 shadow-sm shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Brand</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 text-xs pt-1">
+            <div>
               <label className="text-slate-400 font-semibold block mb-1">
                 Estimated Monthly Requirement (MT / Month or Bars / Month)
               </label>
@@ -797,6 +1255,144 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
               />
             </div>
           </div>
+        </div>
+
+        {/* Section 6: Conversation Dialogue Logger (Sales Person vs Fabricator / Dealer / Distributor) */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <MessageCircle className="w-3.5 h-3.5 text-sky-400" />
+              <span>6. Conversation Dialogue (Sales Person & Fabricator / Dealer / Distributor)</span>
+            </h3>
+            <button
+              type="button"
+              onClick={handleAddConversationLog}
+              className="px-3 py-1.5 rounded-xl bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white text-xs font-bold transition flex items-center gap-1 shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Dialogue Turn</span>
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Log discussion Q&A between Sales Executive and Customer / Fabricator / Dealer / Distributor during the visit.
+          </p>
+
+          {conversationLogs.length > 0 ? (
+            <div className="space-y-3">
+              {conversationLogs.map((log, idx) => (
+                <div key={log.id} className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap flex-1">
+                      <span className="text-[10px] font-bold text-sky-400 bg-sky-950/80 border border-sky-800 px-2 py-0.5 rounded">
+                        Turn #{idx + 1}
+                      </span>
+                      <select
+                        value={log.speakerRole}
+                        onChange={(e) => handleUpdateConversationLog(log.id, 'speakerRole', e.target.value as any)}
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] font-semibold text-white focus:outline-none focus:border-sky-500"
+                      >
+                        <option value="Sales Executive">Sales Executive</option>
+                        <option value="Fabricator">Fabricator</option>
+                        <option value="Dealer">Dealer</option>
+                        <option value="Distributor">Distributor</option>
+                        <option value="Director">Director / Partner</option>
+                        <option value="Supervisor">Supervisor</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={log.speakerName}
+                        onChange={(e) => handleUpdateConversationLog(log.id, 'speakerName', e.target.value)}
+                        placeholder="Speaker Name"
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-sky-500 w-36"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveConversationLog(log.id)}
+                      className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition"
+                      title="Remove dialogue turn"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div>
+                    <textarea
+                      rows={2}
+                      value={log.message}
+                      onChange={(e) => handleUpdateConversationLog(log.id, 'message', e.target.value)}
+                      placeholder="Write conversation details (e.g. Sales Executive explained 3-track sliding weight; Fabricator asked about corner bracket price and delivery timeline)..."
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500 placeholder-slate-500 resize-none"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-slate-800/30 border border-dashed border-slate-700/60 rounded-xl p-3 text-center text-xs text-slate-400">
+              No conversation dialogue logged yet. Click "Add Dialogue Turn" to record Q&A or discussion points.
+            </div>
+          )}
+        </div>
+
+        {/* Section 7: Other Opinion / Custom Remarks Cards */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-indigo-400" />
+              <span>7. Other Opinion / Custom Remarks Cards</span>
+            </h3>
+            <button
+              type="button"
+              onClick={handleAddOtherOpinionCard}
+              className="px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-bold transition flex items-center gap-1 shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Custom Card</span>
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Add extra opinion cards for competitor pricing analysis, machinery status, fabricator expectations, or special notes.
+          </p>
+
+          {otherOpinionCards.length > 0 ? (
+            <div className="space-y-3">
+              {otherOpinionCards.map((card, idx) => (
+                <div key={card.id} className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      value={card.title}
+                      onChange={(e) => handleUpdateOtherOpinionCard(card.id, 'title', e.target.value)}
+                      placeholder="Card Title (e.g. Competitor Price Feedback, Machinery Check)"
+                      className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-indigo-500 flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOtherOpinionCard(card.id)}
+                      className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition"
+                      title="Remove custom card"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div>
+                    <textarea
+                      rows={2}
+                      value={card.content}
+                      onChange={(e) => handleUpdateOtherOpinionCard(card.id, 'content', e.target.value)}
+                      placeholder="Write custom opinion or analysis details here..."
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-slate-500 resize-none"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-slate-800/30 border border-dashed border-slate-700/60 rounded-xl p-3 text-center text-xs text-slate-400">
+              No custom opinion cards added. Click "Add Custom Card" to record additional structured notes.
+            </div>
+          )}
         </div>
 
         {formError && (

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { CustomerVisitHeader } from './components/CustomerVisitHeader';
 import { CustomerBottomNav, CustomerTabType } from './components/CustomerBottomNav';
@@ -13,9 +13,13 @@ import { CustomerVisitDetailModal } from './components/CustomerVisitDetailModal'
 import { FabricatorLeadsView } from './components/FabricatorLeadsView';
 import { AllIndiaAnalyticsView } from './components/AllIndiaAnalyticsView';
 import { ExcelImportExportView } from './components/ExcelImportExportView';
+import { CustomerVisitCalendarView } from './components/CustomerVisitCalendarView';
+import { EmployeeManagementView } from './components/EmployeeManagementView';
 
 import { CustomerVisit } from './types/customerVisit';
+import { Employee } from './types/employee';
 import { VisitStorageService } from './services/visitStorage';
+import { EmployeeService } from './services/employeeService';
 import { ExportVisitService } from './services/exportVisitService';
 import { initAuth, googleSignIn, executiveLogin, logout, AppUser } from './services/firebaseAuth';
 import { FirestoreSyncService } from './services/firestoreSync';
@@ -30,9 +34,21 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const [visits, setVisits] = useState<CustomerVisit[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>(EmployeeService.getEmployees());
   const [currentTab, setCurrentTab] = useState<CustomerTabType>('entry');
   const [selectedVisit, setSelectedVisit] = useState<CustomerVisit | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const isAdmin = user?.role === 'admin';
+  const authorizedVisits = useMemo(() => {
+    if (isAdmin || !user) return visits;
+    return visits.filter(
+      (v) =>
+        v.salesExecutiveName === user.displayName ||
+        v.executiveEmail === user.email ||
+        v.salesExecutiveName?.toLowerCase().includes((user.displayName || '').toLowerCase())
+    );
+  }, [visits, user, isAdmin]);
 
   const defaultExecutive = user?.displayName || VisitStorageService.getSalesExecutiveName();
 
@@ -357,27 +373,47 @@ export default function App() {
 
         {currentTab === 'list' && (
           <CustomerVisitList
-            visits={visits}
+            visits={authorizedVisits}
             onSelectVisit={(v) => setSelectedVisit(v)}
             onDeleteVisit={handleDeleteVisit}
             onQuickTogglePI={handleQuickTogglePI}
           />
         )}
 
+        {currentTab === 'calendar' && (
+          <CustomerVisitCalendarView
+            visits={authorizedVisits}
+            onSelectVisit={(v) => setSelectedVisit(v)}
+          />
+        )}
+
         {currentTab === 'leads' && (
           <FabricatorLeadsView
-            visits={visits}
+            visits={authorizedVisits}
             onSelectVisit={(v) => setSelectedVisit(v)}
             onUpdateStatus={(v, newStatus) => handleUpdateVisit({ ...v, leadStatus: newStatus })}
           />
         )}
 
+        {currentTab === 'employees' && isAdmin && (
+          <EmployeeManagementView
+            employees={employees}
+            visits={visits}
+            onUpdateEmployees={(newEmps) => setEmployees(newEmps)}
+            onUpdateVisits={(newVisits) => {
+              setVisits(newVisits);
+              VisitStorageService.saveVisits(newVisits);
+              FirestoreSyncService.pushAllVisitsToCloud(newVisits);
+            }}
+            showToast={showToast}
+          />
+        )}
 
-        {currentTab === 'analytics' && <AllIndiaAnalyticsView visits={visits} />}
+        {currentTab === 'analytics' && <AllIndiaAnalyticsView visits={authorizedVisits} />}
 
         {currentTab === 'excel' && (
           <ExcelImportExportView
-            visits={visits}
+            visits={authorizedVisits}
             onImportVisits={handleImportVisits}
             onExportExcel={handleExportExcel}
             onExportPdf={handleExportPdf}
@@ -395,22 +431,29 @@ export default function App() {
         onDeleteVisit={handleDeleteVisit}
       />
 
-      {/* Auth Modal with Google Sign-in and 1-Click Raviraja Executive Login */}
+      {/* Auth Modal with Mobile Number & OTP Login */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onGoogleLogin={handleGoogleLogin}
         onExecutiveLogin={handleExecutiveLogin}
+        onMobileLoginUser={(loggedUser) => {
+          setUser(loggedUser);
+          VisitStorageService.setSalesExecutiveName(loggedUser.displayName || 'Raviraja Industries');
+          showToast(`✓ Logged in as ${loggedUser.displayName} (${loggedUser.role.toUpperCase()})`);
+          setIsAuthModalOpen(false);
+        }}
         isLoggingIn={isLoggingIn}
         authError={authError}
       />
 
-      {/* Mobile-Native Bottom Navigation with 6 Tabs */}
+      {/* Mobile-Native Bottom Navigation with Role-Based Tabs */}
       <CustomerBottomNav
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
-        visitCount={visits.length}
+        visitCount={authorizedVisits.length}
         hotCount={hotCount}
+        isAdmin={isAdmin}
       />
     </div>
   );

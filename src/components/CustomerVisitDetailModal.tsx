@@ -18,6 +18,8 @@ import {
   Navigation,
   ExternalLink,
   Sparkles,
+  Users,
+  Briefcase,
 } from 'lucide-react';
 import { CustomerVisit, LeadStatus, PISentStatus } from '../types/customerVisit';
 
@@ -86,7 +88,13 @@ const ModalContent: React.FC<ModalContentProps> = ({
             <h3 className="text-lg font-black text-white leading-tight mt-0.5">
               {visit.companyName || visit.customerName}
             </h3>
-            <p className="text-xs text-slate-400">ID: {visit.id}</p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-xs text-sky-300 font-semibold flex items-center gap-1 bg-sky-950/80 px-2 py-0.5 rounded-md border border-sky-800">
+                <User className="w-3 h-3 text-sky-400" />
+                <span>Dealt by Sales Executive: <strong className="text-white">{visit.salesExecutiveName}</strong></span>
+              </span>
+              <span className="text-[11px] text-slate-400">Date: {visit.customerVisitDate}</span>
+            </div>
           </div>
           <button
             type="button"
@@ -120,8 +128,13 @@ const ModalContent: React.FC<ModalContentProps> = ({
         {/* Core Profile Grid */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/60">
-            <span className="text-[10px] text-slate-400 block">Contact Person</span>
-            <p className="font-bold text-white mt-0.5">{visit.customerName}</p>
+            <div className="flex items-center justify-between gap-1 mb-0.5">
+              <span className="text-[10px] text-slate-400 block">Contact Person</span>
+              <span className="text-[9px] font-bold text-sky-300 bg-sky-950/80 border border-sky-800/60 px-1.5 py-0.2 rounded truncate max-w-[105px]">
+                {visit.contactDesignation || 'Owner / Proprietor'}
+              </span>
+            </div>
+            <p className="font-bold text-white">{visit.customerName}</p>
             <span className="text-[11px] text-slate-400 font-mono">{visit.mobileNumber}</span>
           </div>
 
@@ -143,6 +156,76 @@ const ModalContent: React.FC<ModalContentProps> = ({
             <span className="text-[11px] text-slate-400">By: {visit.salesExecutiveName}</span>
           </div>
         </div>
+
+        {/* Additional Directors, Supervisors & Unit Personnel Card */}
+        {visit.additionalContacts && visit.additionalContacts.length > 0 && (
+          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5 text-xs shadow-inner">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-800/80">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-sky-400" />
+                <span>Unit Key Personnel ({visit.additionalContacts.length})</span>
+              </span>
+              <span className="text-[10px] font-semibold text-slate-400">
+                Directors, Supervisors & Partners
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {visit.additionalContacts.map((contact, idx) => {
+                const cPhoneClean = contact.mobileNumber.replace(/[^0-9]/g, '');
+                return (
+                  <div
+                    key={contact.id || idx}
+                    className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/90 flex items-center justify-between gap-2.5 hover:border-slate-700 transition"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-white text-xs truncate">
+                          {contact.name || `Personnel #${idx + 1}`}
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                          {contact.designation || 'Supervisor'}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-300 font-mono block mt-0.5">
+                        {contact.mobileNumber || 'No direct phone logged'}
+                      </span>
+                      {contact.notes && (
+                        <span className="text-[10px] text-slate-400 italic block mt-0.5 truncate">
+                          "{contact.notes}"
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Direct Contact Buttons for each supervisor / director */}
+                    {contact.mobileNumber && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <a
+                          href={`tel:${contact.mobileNumber}`}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-600/30 hover:bg-sky-600 text-sky-300 hover:text-white transition text-[11px] font-semibold shadow-sm"
+                          title={`Call ${contact.name}`}
+                        >
+                          <Phone className="w-3 h-3" />
+                          <span className="hidden sm:inline">Call</span>
+                        </a>
+                        <a
+                          href={`https://wa.me/${cPhoneClean}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white transition text-[11px] font-semibold shadow-sm"
+                          title={`WhatsApp ${contact.name}`}
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          <span className="hidden sm:inline">WA</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* GPS Location Tag Link Card */}
         {visit.gpsLocationLink && (
@@ -212,9 +295,31 @@ const ModalContent: React.FC<ModalContentProps> = ({
             <span className="font-bold text-white text-right max-w-[68%]">{visitSeries}</span>
           </div>
 
-          <div className="flex justify-between">
-            <span className="text-slate-400">Current uPVC Brand Used:</span>
-            <span className="font-medium text-slate-200">{visit.currentBrand || 'None'}</span>
+          <div className="flex justify-between items-start gap-2">
+            <span className="text-slate-400 shrink-0">Current Brand(s) Used:</span>
+            <div className="flex flex-wrap gap-1 justify-end max-w-[68%]">
+              {visit.currentBrands && visit.currentBrands.length > 0 ? (
+                visit.currentBrands.map((b, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                  >
+                    {b}
+                  </span>
+                ))
+              ) : visit.currentBrand && visit.currentBrand !== 'None' ? (
+                visit.currentBrand.split(',').map((b, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                  >
+                    {b.trim()}
+                  </span>
+                ))
+              ) : (
+                <span className="font-medium text-slate-400">None</span>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-between">
@@ -282,6 +387,47 @@ const ModalContent: React.FC<ModalContentProps> = ({
             />
           </div>
         </div>
+
+        {/* Conversation Dialogue Logs View */}
+        {visit.conversationLogs && visit.conversationLogs.length > 0 && (
+          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5 text-xs">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5 pb-1 border-b border-slate-800">
+              <MessageCircle className="w-3.5 h-3.5 text-sky-400" />
+              <span>Conversation Dialogue Log ({visit.conversationLogs.length})</span>
+            </span>
+            <div className="space-y-2">
+              {visit.conversationLogs.map((log, idx) => (
+                <div key={log.id || idx} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="font-bold text-sky-300">
+                      {log.speakerName} <span className="text-slate-400 font-normal">({log.speakerRole})</span>
+                    </span>
+                    {log.timestamp && <span className="text-slate-500 font-mono">{log.timestamp}</span>}
+                  </div>
+                  <p className="text-slate-200 text-xs">{log.message}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Other Opinion / Custom Remarks Cards View */}
+        {visit.otherOpinionCards && visit.otherOpinionCards.length > 0 && (
+          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5 text-xs">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5 pb-1 border-b border-slate-800">
+              <FileText className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Other Opinion & Custom Cards ({visit.otherOpinionCards.length})</span>
+            </span>
+            <div className="space-y-2">
+              {visit.otherOpinionCards.map((card, idx) => (
+                <div key={card.id || idx} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+                  <span className="font-bold text-indigo-300 block text-xs">{card.title}</span>
+                  <p className="text-slate-300 text-xs">{card.content}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">

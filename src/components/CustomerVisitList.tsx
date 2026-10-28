@@ -18,6 +18,8 @@ import {
   Navigation,
   ExternalLink,
   Sparkles,
+  Users,
+  Briefcase,
 } from 'lucide-react';
 import { CustomerVisit } from '../types/customerVisit';
 import { INDIAN_STATES } from '../data/indiaLocations';
@@ -47,6 +49,14 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
       const matchSearch =
         searchTerm === '' ||
         v.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (v.contactDesignation && v.contactDesignation.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (v.additionalContacts &&
+          v.additionalContacts.some(
+            (c) =>
+              c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              c.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              c.mobileNumber.toLowerCase().includes(searchTerm.toLowerCase())
+          )) ||
         v.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.mobileNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (v.gstNumber && v.gstNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -232,7 +242,7 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
             </p>
           </div>
         ) : (
-          filteredVisits.map((visit) => {
+          filteredVisits.map((visit, index) => {
             const isHot = visit.leadStatus === 'Hot';
             const isWon = visit.leadStatus === 'Won / Closed';
             const visitBrand =
@@ -248,6 +258,17 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                 key={visit.id}
                 className="bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 transition shadow-sm group"
               >
+                {/* Visit Number & Executive Deal Header */}
+                <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800 text-xs">
+                  <span className="font-mono font-extrabold px-2 py-0.5 rounded-lg bg-sky-950 text-sky-300 border border-sky-800/80">
+                    Visit #{filteredVisits.length - index}
+                  </span>
+                  <span className="text-slate-300 font-semibold flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Dealt by Sales Executive: <strong className="text-white">{visit.salesExecutiveName}</strong></span>
+                  </span>
+                </div>
+
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div
                     className="flex-1 min-w-0 cursor-pointer"
@@ -274,7 +295,10 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
 
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-300 mt-1 font-medium">
                       <User className="w-3 h-3 text-slate-500" />
-                      <span>{visit.customerName}</span>
+                      <span className="font-bold text-white">{visit.customerName}</span>
+                      <span className="text-[10px] font-semibold text-sky-300 bg-sky-950/80 border border-sky-800/60 px-1.5 py-0.2 rounded">
+                        {visit.contactDesignation || 'Owner / Proprietor'}
+                      </span>
                       <span className="text-slate-500">•</span>
                       <span className="text-slate-400">{visit.customerType}</span>
                       {visit.gstNumber && (
@@ -286,6 +310,53 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                         </>
                       )}
                     </div>
+
+                    {/* Additional Directors, Supervisors & Unit Team */}
+                    {visit.additionalContacts && visit.additionalContacts.length > 0 && (
+                      <div className="mt-1.5 pt-1.5 border-t border-slate-800/60">
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400 font-semibold mb-1">
+                          <Users className="w-3 h-3 text-sky-400" />
+                          <span>Unit Personnel ({visit.additionalContacts.length}):</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {visit.additionalContacts.map((contact, idx) => {
+                            const cClean = contact.mobileNumber.replace(/[^0-9]/g, '');
+                            return (
+                              <div
+                                key={contact.id || idx}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/90 border border-slate-700/80 text-[11px]"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span className="font-semibold text-slate-200">{contact.name}</span>
+                                <span className="text-[9px] font-bold text-indigo-300 bg-indigo-500/20 px-1 py-0.2 rounded">
+                                  {contact.designation}
+                                </span>
+                                {contact.mobileNumber && (
+                                  <div className="flex items-center gap-1 pl-1 ml-0.5 border-l border-slate-700">
+                                    <a
+                                      href={`tel:${contact.mobileNumber}`}
+                                      className="text-sky-400 hover:text-sky-300 transition"
+                                      title={`Call ${contact.name}`}
+                                    >
+                                      <Phone className="w-2.5 h-2.5" />
+                                    </a>
+                                    <a
+                                      href={`https://wa.me/${cClean}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-emerald-400 hover:text-emerald-300 transition"
+                                      title={`WhatsApp ${contact.name}`}
+                                    >
+                                      <MessageCircle className="w-2.5 h-2.5" />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 mt-1.5">
                       <div className="flex items-center gap-1">
@@ -373,6 +444,24 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Currently Used Competitor Multi-Brands */}
+                {((visit.currentBrands && visit.currentBrands.length > 0) || (visit.currentBrand && visit.currentBrand !== 'None' && visit.currentBrand !== 'Local/Competitor')) && (
+                  <div className="flex items-center gap-1.5 flex-wrap mb-2 text-[11px]">
+                    <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                      Brands Used ({visit.currentBrands?.length || visit.currentBrand.split(',').length}):
+                    </span>
+                    {(visit.currentBrands || visit.currentBrand.split(',')).map((b, bIdx) => (
+                      <span
+                        key={bIdx}
+                        className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-950/40 text-amber-200 border border-amber-600/30"
+                      >
+                        {b.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Remarks & Follow-up */}
                 {visit.visitRemarks && (

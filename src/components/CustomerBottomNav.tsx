@@ -2,15 +2,19 @@ import React from 'react';
 import {
   ClipboardEdit,
   Users,
+  Calendar,
   Flame,
   MapPin,
   FileSpreadsheet,
+  ShieldAlert,
 } from 'lucide-react';
 
 export type CustomerTabType =
   | 'entry'
   | 'list'
+  | 'calendar'
   | 'leads'
+  | 'employees'
   | 'analytics'
   | 'excel';
 
@@ -19,6 +23,7 @@ interface CustomerBottomNavProps {
   onSelectTab: (tab: CustomerTabType) => void;
   visitCount: number;
   hotCount: number;
+  isAdmin: boolean;
 }
 
 export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
@@ -26,19 +31,32 @@ export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
   onSelectTab,
   visitCount,
   hotCount,
+  isAdmin,
 }) => {
-  const tabs = [
+  const baseTabs = [
     { id: 'entry' as CustomerTabType, label: 'New Visit', icon: ClipboardEdit },
     { id: 'list' as CustomerTabType, label: 'Visits', icon: Users, badge: visitCount },
+    { id: 'calendar' as CustomerTabType, label: 'Calendar', icon: Calendar },
     { id: 'leads' as CustomerTabType, label: 'uPVC Leads', icon: Flame, hotBadge: hotCount },
-    { id: 'analytics' as CustomerTabType, label: 'All-India', icon: MapPin },
-    { id: 'excel' as CustomerTabType, label: 'Excel/Sync', icon: FileSpreadsheet },
   ];
+
+  if (isAdmin) {
+    baseTabs.push(
+      { id: 'employees' as CustomerTabType, label: 'Team', icon: ShieldAlert }
+    );
+  }
+
+  baseTabs.push(
+    { id: 'analytics' as CustomerTabType, label: 'All-India', icon: MapPin },
+    { id: 'excel' as CustomerTabType, label: 'Excel/Sync', icon: FileSpreadsheet }
+  );
+
+  const gridColsClass = baseTabs.length === 7 ? 'grid-cols-7' : 'grid-cols-6';
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 pb-safe shadow-2xl">
-      <div className="max-w-lg mx-auto grid grid-cols-5 px-1 py-1.5">
-        {tabs.map((tab) => {
+      <div className={`max-w-xl mx-auto grid ${gridColsClass} px-1 py-1.5`}>
+        {baseTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
 
@@ -68,7 +86,7 @@ export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
                   </span>
                 )}
               </div>
-              <span className="text-[9px] mt-1 tracking-tight truncate max-w-[60px]">
+              <span className="text-[9px] mt-1 tracking-tight truncate max-w-[50px]">
                 {tab.label}
               </span>
               {isActive && (

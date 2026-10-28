@@ -145,10 +145,18 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-3 z-50 text-xs">
                   <div className="pb-2 border-b border-slate-700 mb-2">
-                    <p className="font-bold text-white truncate">
-                      {user.displayName || 'Raviraja Industries'}
-                    </p>
-                    <p className="text-[11px] text-sky-300 font-mono truncate">{user.email}</p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="font-bold text-white truncate">
+                        {user.displayName || 'Sales Executive'}
+                      </p>
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${user.role === 'admin' ? 'bg-amber-500 text-slate-950' : 'bg-sky-500 text-slate-950'}`}>
+                        {(user.role || 'sales').toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-sky-300 font-mono truncate">{user.mobileNumber || user.email}</p>
+                    {user.designation && (
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">{user.designation}</p>
+                    )}
                     <div className="flex items-center gap-1 mt-1 text-[10px] text-emerald-400 font-medium">
                       <CheckCircle2 className="w-3 h-3" />
                       <span>Live Synced Across Devices</span>

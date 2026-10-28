@@ -104,8 +104,30 @@ export const UPVC_COMPETITOR_BRANDS = [
   'Simta Astrix',
   'Plastone',
   'Aparna Venster',
+  'Rehau',
+  'Encraft',
   'Dimex',
+  'Kinbon',
+  'Conch',
+  'Eurocell',
+  'Lesso',
+  'Greenply / Green',
   'Local Extruder',
+];
+
+export const POPULAR_MULTI_BRAND_PRESETS = [
+  {
+    name: 'Top 3 Premium Mix',
+    brands: ['Kommerling', 'Prominance', 'NCL VEKA'],
+  },
+  {
+    name: 'Top 3 Multi-Tier',
+    brands: ['Prominance', 'Aluplast', 'Deceuninck'],
+  },
+  {
+    name: 'Top 5 Full Fabricator Range',
+    brands: ['Kommerling', 'Prominance', 'NCL VEKA', 'Aluplast', 'Plastone'],
+  },
 ];
 
 export const UPVC_COLOR_FINISHES = [
@@ -116,3 +138,35 @@ export const UPVC_COLOR_FINISHES = [
   'Anthracite Grey',
   'Mahogany',
 ];
+
+export const COMMON_DESIGNATIONS = [
+  'Owner / Proprietor',
+  'Managing Director (MD)',
+  'Director',
+  'Partner / Co-Owner',
+  'Plant Head / Factory Manager',
+  'Workshop Supervisor',
+  'Production In-Charge',
+  'Purchase / Procurement Manager',
+  'Fabrication In-Charge',
+  'Site Engineer / Supervisor',
+  'Technical Head',
+  'Accounts & Commercial In-Charge',
+  'Other',
+];
+
+export const ADDITIONAL_CONTACT_ROLES = [
+  'Director / Co-Owner',
+  'Partner',
+  'Workshop Supervisor',
+  'Production Manager',
+  'Plant Head',
+  'Purchase / Procurement Head',
+  'Fabrication Supervisor',
+  'Site Supervisor',
+  'Technical In-Charge',
+  'Accounts / Billing',
+  'Store In-Charge',
+  'Other Role',
+];
+

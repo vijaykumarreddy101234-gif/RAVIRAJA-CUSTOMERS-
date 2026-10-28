@@ -28,11 +28,39 @@ export class ExportVisitService {
         v.gpsLocationLink ||
         (v.latitude && v.longitude ? `https://www.google.com/maps?q=${v.latitude},${v.longitude}` : '');
 
+      const additionalPersonnel =
+        v.additionalContacts && v.additionalContacts.length > 0
+          ? v.additionalContacts
+              .map(
+                (c) =>
+                  `${c.name} (${c.designation})${c.mobileNumber ? `: ${c.mobileNumber}` : ''}${
+                    c.notes ? ` [${c.notes}]` : ''
+                  }`
+              )
+              .join('; ')
+          : 'None';
+
+      const conversationText =
+        v.conversationLogs && v.conversationLogs.length > 0
+          ? v.conversationLogs
+              .map((c) => `[${c.speakerName} (${c.speakerRole}): "${c.message}"]`)
+              .join('; ')
+          : 'None';
+
+      const opinionText =
+        v.otherOpinionCards && v.otherOpinionCards.length > 0
+          ? v.otherOpinionCards
+              .map((o) => `[${o.title}: ${o.content}]`)
+              .join('; ')
+          : 'None';
+
       return {
         'Sales Executive Name': v.salesExecutiveName,
         'Customer Visit Date': v.customerVisitDate,
-        'Customer Name': v.customerName,
+        'Customer / Owner Name': v.customerName,
+        'Designation / Role': v.contactDesignation || 'Owner / Proprietor',
         'Mobile Number': v.mobileNumber,
+        'Additional Directors / Supervisors': additionalPersonnel,
         'Company Name': v.companyName,
         'GST No.': v.gstNumber || '',
         'Customer Type': v.customerType,
@@ -43,12 +71,17 @@ export class ExportVisitService {
         'GPS Location Link': gpsLink,
         'Brand': brand,
         'uPVC Series': series,
-        'Current Brand In Use': v.currentBrand,
+        'Current Brands In Use':
+          v.currentBrands && v.currentBrands.length > 0
+            ? v.currentBrands.join(', ')
+            : v.currentBrand,
         'Quantity / Month': v.quantityPerMonth,
         'PI Sent?': v.piSent,
         'Lead Status': v.leadStatus,
         'Follow-up Date': v.followUpDate,
         'Visit Remarks': v.visitRemarks,
+        'Conversation Dialogue Logs': conversationText,
+        'Other Opinion / Custom Cards': opinionText,
       };
     });
 
@@ -58,9 +91,11 @@ export class ExportVisitService {
     wsVisits['!cols'] = [
       { wch: 22 }, // Sales Executive Name
       { wch: 18 }, // Customer Visit Date
-      { wch: 22 }, // Customer Name
+      { wch: 22 }, // Customer / Owner Name
+      { wch: 20 }, // Designation / Role
       { wch: 18 }, // Mobile Number
-      { wch: 26 }, // Company Name
+      { wch: 40 }, // Additional Directors / Supervisors
+      { wch: 28 }, // Company Name
       { wch: 20 }, // GST No.
       { wch: 16 }, // Customer Type
       { wch: 16 }, // State
@@ -68,7 +103,7 @@ export class ExportVisitService {
       { wch: 16 }, // City / Town
       { wch: 32 }, // Customer Address
       { wch: 42 }, // GPS Location Link
-      { wch: 14 }, // Brand (S CRAFT, SMART, OTHERS)
+      { wch: 14 }, // Brand
       { wch: 36 }, // uPVC Series
       { wch: 20 }, // Current Brand In Use
       { wch: 20 }, // Quantity / Month
@@ -76,15 +111,21 @@ export class ExportVisitService {
       { wch: 14 }, // Lead Status
       { wch: 16 }, // Follow-up Date
       { wch: 40 }, // Visit Remarks
+      { wch: 45 }, // Conversation Dialogue Logs
+      { wch: 40 }, // Other Opinion / Custom Cards
     ];
 
-    // Add active hyperlinks to GPS Location Link column (Column L, index 11)
-    const range = XLSX.utils.decode_range(wsVisits['!ref'] || 'A1:T1');
-    for (let R = 1; R <= range.e.r; ++R) {
-      const cellRef = XLSX.utils.encode_cell({ c: 11, r: R }); // Column L: GPS Location Link
-      const cell = wsVisits[cellRef];
-      if (cell && cell.v && String(cell.v).startsWith('http')) {
-        cell.l = { Target: String(cell.v), Tooltip: 'Click to open customer location in Google Maps' };
+    // Add active hyperlinks to GPS Location Link column dynamically
+    const headers = Object.keys(formattedRows[0] || {});
+    const gpsColIndex = headers.indexOf('GPS Location Link');
+    if (gpsColIndex >= 0) {
+      const range = XLSX.utils.decode_range(wsVisits['!ref'] || 'A1:V1');
+      for (let R = 1; R <= range.e.r; ++R) {
+        const cellRef = XLSX.utils.encode_cell({ c: gpsColIndex, r: R });
+        const cell = wsVisits[cellRef];
+        if (cell && cell.v && String(cell.v).startsWith('http')) {
+          cell.l = { Target: String(cell.v), Tooltip: 'Click to open customer location in Google Maps' };
+        }
       }
     }
 
@@ -218,9 +259,18 @@ export class ExportVisitService {
 
     // Prepare table data
     const tableRows = visits.map((v) => {
-      const customerBlock = `${v.customerName}\n${v.companyName || ''}${
+      const designationText = v.contactDesignation ? ` (${v.contactDesignation})` : '';
+      const additionalPersonnelText =
+        v.additionalContacts && v.additionalContacts.length > 0
+          ? '\nPersonnel: ' +
+            v.additionalContacts
+              .map((c) => `${c.name} [${c.designation}${c.mobileNumber ? ': ' + c.mobileNumber : ''}]`)
+              .join('; ')
+          : '';
+
+      const customerBlock = `${v.customerName}${designationText}\n${v.companyName || ''}${
         v.gstNumber ? '\nGST: ' + v.gstNumber : ''
-      }`.trim();
+      }${additionalPersonnelText}`.trim();
 
       const brand =
         v.brand ||
@@ -231,7 +281,13 @@ export class ExportVisitService {
           : 'OTHERS');
 
       const series = v.interestedSeries || v.interestedBrand;
-      const brandSeriesBlock = `Brand: ${brand}\n${series}`;
+      const currentBrandsText =
+        v.currentBrands && v.currentBrands.length > 0
+          ? `\nUsing: ${v.currentBrands.join(', ')}`
+          : v.currentBrand && v.currentBrand !== 'None'
+          ? `\nUsing: ${v.currentBrand}`
+          : '';
+      const brandSeriesBlock = `Brand: ${brand}\n${series}${currentBrandsText}`;
 
       const gpsLink =
         v.gpsLocationLink ||

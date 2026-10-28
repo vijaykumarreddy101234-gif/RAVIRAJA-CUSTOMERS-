@@ -15,12 +15,36 @@ export type PISentStatus = 'Yes' | 'No' | 'Under Preparation';
 
 export type UPVCBrand = 'S CRAFT' | 'SMART' | 'OTHERS' | string;
 
+export interface AdditionalContact {
+  id: string;
+  name: string;
+  designation: string; // e.g. Co-Director, Partner, Workshop Supervisor, Production Head, Purchase Manager, Site Supervisor, Accounts
+  mobileNumber: string;
+  notes?: string;
+}
+
+export interface ConversationLog {
+  id: string;
+  speakerName: string;
+  speakerRole: 'Sales Executive' | 'Fabricator' | 'Dealer' | 'Distributor' | 'Director' | 'Supervisor' | 'Other';
+  message: string;
+  timestamp?: string;
+}
+
+export interface OtherOpinionCard {
+  id: string;
+  title: string;
+  content: string;
+}
+
 export interface CustomerVisit {
   id: string;
   salesExecutiveName: string;
   customerVisitDate: string; // YYYY-MM-DD
-  customerName: string;
+  customerName: string; // Primary Owner / Customer contact name
+  contactDesignation?: string; // e.g. Owner / Proprietor, Managing Director (MD), Partner, Workshop Supervisor, etc.
   mobileNumber: string;
+  additionalContacts?: AdditionalContact[]; // Additional directors, supervisors, partners running unit
   companyName: string;
   customerType: CustomerType;
   gstNumber?: string; // GSTIN e.g. 24AAAAA0000A1Z5
@@ -41,12 +65,18 @@ export interface CustomerVisit {
   interestedSeries?: string; // e.g. '60mm Casement Series (Windows & Doors)'
   interestedBrand: string; // Combined / Backward-compatible description
 
-  currentBrand: string; // Competitor uPVC brand e.g. Kommerling, Prominance, Veka
+  currentBrand: string; // Competitor uPVC brand e.g. Kommerling, Prominance, Veka (joined string)
+  currentBrands?: string[]; // Multiple competitor brands used simultaneously (e.g. 3 to 5 brands)
   quantityPerMonth: string; // e.g. "5 MT / Month", "1,200 Bars", "25 Tons"
   piSent: PISentStatus;
   leadStatus: LeadStatus;
   followUpDate: string; // YYYY-MM-DD
   visitRemarks: string;
+
+  // Conversation Dialogue Logs & Custom Opinion Cards
+  conversationLogs?: ConversationLog[];
+  otherOpinionCards?: OtherOpinionCard[];
+
   profileColor?: string;
   executiveEmail?: string;
   createdAt: number;

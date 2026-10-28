@@ -145,16 +145,39 @@ export class FirestoreSyncService {
   }
 
   /**
+   * Clean object recursively to remove undefined values for Firestore
+   */
+  private static cleanForFirestore(obj: any): any {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+    if (Array.isArray(obj)) {
+      return obj
+        .map((item) => FirestoreSyncService.cleanForFirestore(item))
+        .filter((item) => item !== undefined);
+    }
+    const cleaned: Record<string, any> = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = FirestoreSyncService.cleanForFirestore(val);
+      }
+    }
+    return cleaned;
+  }
+
+  /**
    * Save or update a single customer visit in Firestore
    */
   public static async saveVisit(visit: CustomerVisit): Promise<void> {
     const path = `${VISITS_COLLECTION}/${visit.id}`;
     try {
       const visitRef = doc(db, VISITS_COLLECTION, visit.id);
-      await setDoc(visitRef, {
+      const payload = FirestoreSyncService.cleanForFirestore({
         ...visit,
         updatedAt: Date.now(),
       });
+      await setDoc(visitRef, payload);
     } catch (err: any) {
       if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
         handleFirestoreError(err, OperationType.WRITE, path);
@@ -192,10 +215,11 @@ export class FirestoreSyncService {
 
       for (const visit of visits) {
         if (!existingIds.has(visit.id)) {
-          await setDoc(doc(db, VISITS_COLLECTION, visit.id), {
+          const payload = FirestoreSyncService.cleanForFirestore({
             ...visit,
             updatedAt: Date.now(),
           });
+          await setDoc(doc(db, VISITS_COLLECTION, visit.id), payload);
         }
       }
     } catch (err: any) {
@@ -214,10 +238,11 @@ export class FirestoreSyncService {
     try {
       let count = 0;
       for (const visit of visits) {
-        await setDoc(doc(db, VISITS_COLLECTION, visit.id), {
+        const payload = FirestoreSyncService.cleanForFirestore({
           ...visit,
           updatedAt: Date.now(),
         });
+        await setDoc(doc(db, VISITS_COLLECTION, visit.id), payload);
         count++;
       }
       return count;
