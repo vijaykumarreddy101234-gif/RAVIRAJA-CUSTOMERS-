@@ -105,6 +105,10 @@
           "type": "string",
           "description": "Email of the sales executive"
         },
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user ID of creator/assignee"
+        },
         "createdAt": {
           "type": "number",
           "description": "Timestamp of creation"
@@ -115,6 +119,62 @@
         }
       },
       "required": ["customerName", "mobileNumber", "customerVisitDate"]
+    },
+    "SalesEmployee": {
+      "title": "SalesEmployee",
+      "description": "SCRAFT sales executive or administrator profile with territory and role permissions",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Employee ID or Auth UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the sales employee"
+        },
+        "mobileNumber": {
+          "type": "string",
+          "description": "Registered Indian mobile number (+91)"
+        },
+        "employeeCode": {
+          "type": "string",
+          "description": "Official SCRAFT employee code (e.g. SC-EMP-436)"
+        },
+        "designation": {
+          "type": "string",
+          "description": "Job designation"
+        },
+        "assignedState": {
+          "type": "string",
+          "description": "Assigned sales state"
+        },
+        "assignedDistrict": {
+          "type": "string",
+          "description": "Assigned sales district"
+        },
+        "joiningDate": {
+          "type": "string",
+          "description": "Joining date (YYYY-MM-DD)"
+        },
+        "status": {
+          "type": "string",
+          "description": "Account status (Active, Inactive, Resigned)"
+        },
+        "role": {
+          "type": "string",
+          "description": "System role (admin, sales)"
+        },
+        "email": {
+          "type": "string",
+          "description": "Corporate email address"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp of creation"
+        }
+      },
+      "required": ["name", "mobileNumber", "employeeCode", "role", "status"]
     },
     "UPVCWastageProject": {
       "title": "UPVCWastageProject",
@@ -171,6 +231,12 @@
         "$ref": "#/entities/CustomerVisit"
       },
       "description": "Collection of customer visits and uPVC fabricator entries"
+    },
+    "/sales_employees/{empId}": {
+      "schema": {
+        "$ref": "#/entities/SalesEmployee"
+      },
+      "description": "Directory of SCRAFT sales personnel, roles, territories, and account statuses"
     },
     "/upvc_wastage_projects/{projectId}": {
       "schema": {

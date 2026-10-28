@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   Download,
   MessageCircle,
+  Share2,
 } from 'lucide-react';
 import { Employee, EmployeeStatus, UserRole } from '../types/employee';
 import { CustomerVisit } from '../types/customerVisit';
@@ -257,23 +258,42 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
 
                 {/* Quick Actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {/* WhatsApp Direct Login Link */}
                   <a
                     href={`https://wa.me/${emp.mobileNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                      `*SCRAFT uPVC Sales Employee Profile*\n` +
-                      `Name: ${emp.name}\n` +
-                      `Code: ${emp.employeeCode}\n` +
-                      `Designation: ${emp.designation}\n` +
-                      `Territory: ${emp.assignedDistrict}, ${emp.assignedState}\n` +
-                      `Mobile: ${emp.mobileNumber}`
+                      `*SCRAFT uPVC Profiles — Official Sales Portal*\n` +
+                      `Hello ${emp.name},\n` +
+                      `Here is your official SCRAFT Sales portal direct login link:\n` +
+                      `${typeof window !== 'undefined' ? window.location.origin : 'https://raviraja-customers.vercel.app'}/?phone=${encodeURIComponent(emp.mobileNumber.replace(/\D/g, '').slice(-10))}\n\n` +
+                      `• Employee Code: ${emp.employeeCode}\n` +
+                      `• Designation: ${emp.designation}\n` +
+                      `• Territory: ${emp.assignedDistrict}, ${emp.assignedState}\n` +
+                      `• Registered Mobile: ${emp.mobileNumber}\n\n` +
+                      `Open this link on your phone to log in directly with OTP.`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-400 transition text-xs flex items-center gap-1 font-semibold"
-                    title="Share employee profile via WhatsApp"
+                    title="Share direct login link via WhatsApp"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">WhatsApp</span>
+                    <span className="hidden sm:inline">WhatsApp Link</span>
                   </a>
+
+                  {/* Copy Direct Link Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://raviraja-customers.vercel.app';
+                      const link = `${origin}/?phone=${encodeURIComponent(emp.mobileNumber.replace(/\D/g, '').slice(-10))}`;
+                      navigator.clipboard.writeText(link);
+                      showToast(`✓ Copied direct login link for ${emp.name} to clipboard!`);
+                    }}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-xs transition"
+                    title="Copy direct portal login link for this sales employee"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
 
                   <button
                     type="button"

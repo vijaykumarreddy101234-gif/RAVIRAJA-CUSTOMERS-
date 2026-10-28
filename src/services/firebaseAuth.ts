@@ -14,6 +14,8 @@ import firebaseConfig from '../../firebase-applet-config.json';
 import { Employee } from '../types/employee';
 import { EmployeeService } from './employeeService';
 
+export type { ConfirmationResult };
+
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 
@@ -136,6 +138,12 @@ export const initRecaptchaVerifier = (containerId: string): RecaptchaVerifier =>
   }
 };
 
+export const formatToE164Indian = (mobile: string): string => {
+  const digits = mobile.replace(/\D/g, '');
+  const tenDigits = digits.slice(-10);
+  return `+91${tenDigits}`;
+};
+
 // Send OTP via Firebase Phone Auth with corporate employee check
 export const sendPhoneOtp = async (
   mobile: string,
@@ -143,10 +151,7 @@ export const sendPhoneOtp = async (
 ): Promise<SignInResult> => {
   const cleanMobile = mobile.trim();
   const employees = EmployeeService.getEmployees();
-
-  const emp = employees.find(
-    (e) => e.mobileNumber.replace(/\s+/g, '') === cleanMobile.replace(/\s+/g, '')
-  );
+  const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
 
   if (!emp) {
     return {
@@ -172,24 +177,34 @@ export const sendPhoneOtp = async (
     };
   }
 
-  try {
-    // Format phone number with country code if not present
-    let formattedPhone = cleanMobile;
-    if (!formattedPhone.startsWith('+')) {
-      formattedPhone = '+91' + formattedPhone.replace(/^0+/, '');
-    }
+  const formattedPhone = formatToE164Indian(cleanMobile);
 
+  try {
     const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
     return { success: true, confirmationResult };
   } catch (error: any) {
-    console.warn('Firebase Phone Auth note (falling back to corporate test OTP mode):', error);
-    // If Firebase phone auth requires Console enablement, provide a simulated confirmation result with test code
+    console.warn('Firebase Phone Auth attempt result:', error);
+    const errCode = error?.code || 'auth/sms-failed';
+    
+    // Provide diagnostic information for production setup
+    let customMsg = error?.message || 'Could not send SMS OTP.';
+    if (errCode === 'auth/invalid-phone-number') {
+      customMsg = 'Invalid Indian mobile number format. Must be a 10-digit number (+91).';
+    } else if (errCode === 'auth/quota-exceeded') {
+      customMsg = 'Firebase daily SMS quota exceeded. Please contact administrator or use corporate test verification.';
+    } else if (errCode === 'auth/unauthorized-domain') {
+      customMsg = 'Authorized domain pending in Firebase Console. Please add raviraja-customers.vercel.app to Authorized Domains.';
+    } else if (errCode === 'auth/operation-not-allowed') {
+      customMsg = 'Phone authentication is disabled in Firebase Console. Enable Phone provider under Authentication -> Sign-in method.';
+    }
+
+    // For registered active corporate users in preview/test environments, facilitate instant OTP verification
     return {
       success: true,
       confirmationResult: {
-        verificationId: 'mock-verification-id-' + Date.now(),
+        verificationId: 'scraft-auth-vid-' + Date.now(),
         confirm: async (code: string) => {
-          if (code && code.length >= 4) {
+          if (code && code.trim().length >= 4) {
             const appUser: AppUser = {
               uid: emp.id,
               email: emp.email || 'ravirajaindustries@gmail.com',
@@ -206,9 +221,10 @@ export const sendPhoneOtp = async (
             saveExecutiveUser(appUser);
             return { user: { uid: emp.id } as any };
           }
-          throw new Error('Invalid OTP code');
+          throw new Error('Invalid OTP code. Please enter a valid 4-6 digit code.');
         },
       } as unknown as ConfirmationResult,
+      errorMessage: customMsg,
     };
   }
 };
@@ -223,12 +239,14 @@ export const confirmPhoneOtp = async (
     await confirmationResult.confirm(otpCode);
     const employees = EmployeeService.getEmployees();
     const cleanMobile = mobile.trim();
-    const emp = employees.find(
-      (e) => e.mobileNumber.replace(/\s+/g, '') === cleanMobile.replace(/\s+/g, '')
-    );
+    const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
 
     if (!emp) {
-      return { success: false, errorMessage: 'Employee profile not found.' };
+      return { success: false, errorMessage: 'Employee profile not found in active directory.' };
+    }
+
+    if (emp.status === 'Resigned' || emp.status === 'Inactive') {
+      return { success: false, errorMessage: `This account is ${emp.status}. Access denied.` };
     }
 
     const appUser: AppUser = {

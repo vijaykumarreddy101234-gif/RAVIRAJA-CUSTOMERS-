@@ -79,6 +79,7 @@ export interface CustomerVisit {
 
   profileColor?: string;
   executiveEmail?: string;
+  userId?: string;
   createdAt: number;
   updatedAt?: number;
 }

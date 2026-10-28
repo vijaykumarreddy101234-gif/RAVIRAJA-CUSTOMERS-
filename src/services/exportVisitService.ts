@@ -185,8 +185,13 @@ export class ExportVisitService {
    */
   public static exportToPdf(
     visits: CustomerVisit[],
-    filterSummary?: string
+    filterSummary?: string,
+    userContext?: { name?: string | null; role?: string; territory?: string } | null
   ) {
+    const isSales = userContext?.role === 'sales';
+    const executiveName = userContext?.name || 'Executive';
+    const territory = userContext?.territory || '';
+
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -206,7 +211,10 @@ export class ExportVisitService {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(56, 189, 248); // sky-400
-    doc.text('SCRAFT uPVC Profiles Division • Customer Visits, Fabricator Logs & GPS Tags', 14, 16);
+    const subtitle = isSales
+      ? `SCRAFT uPVC Profiles Division • Authorized Sales Executive Report (${executiveName}${territory ? ' - ' + territory : ''})`
+      : 'SCRAFT uPVC Profiles Division • All-India Customer Visits, Fabricator Logs & GPS Tags';
+    doc.text(subtitle, 14, 16);
 
     // Generation timestamp & metadata
     doc.setFontSize(8);
@@ -218,7 +226,7 @@ export class ExportVisitService {
       hour: '2-digit',
       minute: '2-digit',
     });
-    doc.text(`Generated: ${nowStr} | Total Records: ${visits.length}`, doc.internal.pageSize.width - 14, 16, {
+    doc.text(`Generated: ${nowStr} | Authorized Records: ${visits.length}`, doc.internal.pageSize.width - 14, 16, {
       align: 'right',
     });
 
@@ -235,14 +243,17 @@ export class ExportVisitService {
     doc.setFontSize(8);
     doc.setTextColor(71, 85, 105);
     doc.setFont('helvetica', 'bold');
-    doc.text('ALL-INDIA FIELD SALES SUMMARY METRICS:', 18, 34);
+    const metricHeading = isSales
+      ? `AUTHORIZED FIELD SALES SUMMARY METRICS (${executiveName}):`
+      : 'ALL-INDIA FIELD SALES SUMMARY METRICS:';
+    doc.text(metricHeading, 18, 34);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(15, 23, 42);
 
     const statText = [
-      `Total Visits: ${totalVisits}`,
+      `Authorized Visits: ${totalVisits}`,
       `GPS Tagged: ${gpsCount}`,
       `Hot Fabricator Leads: ${hotLeads}`,
       `Deals Won: ${wonDeals}`,
@@ -369,7 +380,10 @@ export class ExportVisitService {
     });
 
     const dateStr = new Date().toISOString().split('T')[0];
-    doc.save(`SCRAFT_Customer_Visits_Report_${dateStr}.pdf`);
+    const fileName = isSales
+      ? `SCRAFT_uPVC_Visits_${(executiveName || 'Executive').replace(/\s+/g, '_')}_${dateStr}.pdf`
+      : `SCRAFT_Customer_Visits_Report_${dateStr}.pdf`;
+    doc.save(fileName);
   }
 
   /**

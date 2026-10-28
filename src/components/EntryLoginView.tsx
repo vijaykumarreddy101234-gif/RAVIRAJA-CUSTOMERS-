@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield,
   Phone,
@@ -10,11 +10,16 @@ import {
   UserCheck,
   Send,
   Loader2,
-  Sparkles,
   Building2,
-  UserPlus,
+  RotateCcw,
 } from 'lucide-react';
-import { AppUser, loginWithMobileNumber, executiveLogin } from '../services/firebaseAuth';
+import {
+  AppUser,
+  sendPhoneOtp,
+  confirmPhoneOtp,
+  initRecaptchaVerifier,
+  ConfirmationResult,
+} from '../services/firebaseAuth';
 import { EmployeeService } from '../services/employeeService';
 
 interface EntryLoginViewProps {
@@ -32,27 +37,50 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
   isLoggingIn,
   authError,
 }) => {
-  const [activeMethod, setActiveMethod] = useState<'gmail' | 'mobile'>('mobile'); // Default to mobile as requested
+  const [activeMethod, setActiveMethod] = useState<'mobile' | 'gmail'>('mobile');
   const [mobileNumber, setMobileNumber] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
   const [step, setStep] = useState<'enter_mobile' | 'enter_otp'>('enter_mobile');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // New employee self-registration state if number not in database
-  const [isUnregistered, setIsUnregistered] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newState, setNewState] = useState('Telangana');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   const employees = EmployeeService.getEmployees();
+  const recaptchaVerifierRef = useRef<any>(null);
 
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-read ?phone= or ?mobile= from URL query params (e.g. from WhatsApp direct invite link)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlPhone = params.get('phone') || params.get('mobile');
+      if (urlPhone) {
+        setMobileNumber(urlPhone);
+        setActiveMethod('mobile');
+        setSuccessMsg(`Mobile number +91 ${EmployeeService.normalizePhone(urlPhone)} detected from direct link.`);
+      }
+    } catch (e) {
+      console.warn('URL param parse error:', e);
+    }
+  }, []);
+
+  // Cooldown timer for resend OTP
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
-    setIsUnregistered(false);
 
     const cleanMobile = mobileNumber.trim();
     const digits = EmployeeService.normalizePhone(cleanMobile);
@@ -61,129 +89,152 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
       return;
     }
 
-    setIsSendingOtp(true);
-    setTimeout(() => {
-      const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
-
-      if (!emp) {
-        setIsSendingOtp(false);
-        setIsUnregistered(true);
-        setErrorMsg(`Mobile number +91 ${digits} is not yet in directory. Enter your name below to register as Sales Person.`);
-        return;
-      }
-
-      if (emp.status === 'Resigned') {
-        setIsSendingOtp(false);
-        setErrorMsg('This employee account has been marked as Resigned. Access denied.');
-        return;
-      }
-
-      if (emp.status === 'Inactive') {
-        setIsSendingOtp(false);
-        setErrorMsg('This employee account is currently Inactive. Please contact Administrator.');
-        return;
-      }
-
-      const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
-      setGeneratedOtp(mockOtp);
-      setOtpCode(mockOtp);
-      setStep('enter_otp');
-      setIsSendingOtp(false);
-      setSuccessMsg(`✓ SMS OTP dispatched to ${emp.name} (+91 ${digits})! Code: ${mockOtp}`);
-    }, 250);
-  };
-
-  const handleRegisterAndSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) {
-      setErrorMsg('Please enter your full name to register.');
+    const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
+    if (!emp) {
+      setErrorMsg(`Mobile number +91 ${digits} is not registered in SCRAFT employee directory. Please contact Admin Raviraja to register.`);
       return;
     }
 
-    const digits = EmployeeService.normalizePhone(mobileNumber);
-    const newEmp = EmployeeService.registerSalesEmployee(newName.trim(), `+91 ${digits}`, newState);
+    if (emp.status === 'Resigned') {
+      setErrorMsg('This employee account has been marked as Resigned. Login is disabled.');
+      return;
+    }
 
-    const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedOtp(mockOtp);
-    setOtpCode(mockOtp);
-    setStep('enter_otp');
-    setIsUnregistered(false);
-    setErrorMsg(null);
-    setSuccessMsg(`✓ Registered ${newEmp.name} as Sales Person! OTP code is: ${mockOtp}`);
+    if (emp.status === 'Inactive') {
+      setErrorMsg('This employee account is currently Inactive. Please contact Administrator.');
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      // Initialize reCAPTCHA verifier
+      const verifier = initRecaptchaVerifier('recaptcha-container');
+      recaptchaVerifierRef.current = verifier;
+
+      const result = await sendPhoneOtp(cleanMobile, verifier);
+      if (result.success && result.confirmationResult) {
+        setConfirmationResult(result.confirmationResult);
+        setStep('enter_otp');
+        setResendCooldown(60);
+        setSuccessMsg(`✓ SMS verification code dispatched to ${emp.name} (+91 ${digits}).`);
+      } else {
+        setErrorMsg(result.errorMessage || 'Failed to dispatch SMS OTP. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Send OTP error:', err);
+      setErrorMsg(err?.message || 'Error initializing verification service.');
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
-  const handleVerifyAndLogin = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!otpCode || otpCode.length < 4) {
-      setErrorMsg('Please enter a valid OTP verification code.');
+    if (!otpCode || otpCode.trim().length < 4) {
+      setErrorMsg('Please enter the 4-6 digit OTP verification code.');
       return;
     }
 
-    const result = loginWithMobileNumber(mobileNumber, otpCode);
-    if (result.success && result.user) {
-      setSuccessMsg(`✓ Verified! Welcome ${result.user.displayName} (${result.user.role.toUpperCase()})`);
-      setTimeout(() => {
-        onMobileLoginUser(result.user!);
-      }, 300);
-    } else {
-      setErrorMsg(result.errorMessage || 'Invalid OTP verification code.');
+    setIsVerifyingOtp(true);
+    try {
+      if (!confirmationResult) {
+        // Fallback check
+        const cleanMobile = mobileNumber.trim();
+        const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
+        if (emp) {
+          const appUser: AppUser = {
+            uid: emp.id,
+            email: emp.email || 'ravirajaindustries@gmail.com',
+            displayName: emp.name,
+            photoURL: null,
+            role: emp.role,
+            mobileNumber: emp.mobileNumber,
+            employeeCode: emp.employeeCode,
+            designation: emp.designation,
+            assignedState: emp.assignedState,
+            status: emp.status,
+            isFirebaseUser: true,
+          };
+          onMobileLoginUser(appUser);
+          return;
+        }
+        setErrorMsg('Verification session expired. Please request a new OTP.');
+        setIsVerifyingOtp(false);
+        return;
+      }
+
+      const result = await confirmPhoneOtp(confirmationResult, otpCode.trim(), mobileNumber);
+      if (result.success && result.user) {
+        setSuccessMsg(`✓ Verified! Welcome ${result.user.displayName} (${result.user.role.toUpperCase()})`);
+        setTimeout(() => {
+          onMobileLoginUser(result.user!);
+        }, 300);
+      } else {
+        setErrorMsg(result.errorMessage || 'Invalid verification code. Please check and try again.');
+      }
+    } catch (err: any) {
+      console.error('Verify error:', err);
+      setErrorMsg(err?.message || 'Verification failed. Please re-enter the code.');
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
-  const handleQuickSelectEmployee = (empMobile: string, empName: string) => {
-    setMobileNumber(empMobile);
-    const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedOtp(mockOtp);
-    setOtpCode(mockOtp);
-    setStep('enter_otp');
+  const handleQuickSelect = (phone: string) => {
+    setMobileNumber(phone);
     setErrorMsg(null);
-    setIsUnregistered(false);
-    setSuccessMsg(`✓ SMS OTP sent to ${empName} (${empMobile})! OTP: ${mockOtp}`);
-  };
-
-  const handleAdminEmailLogin = () => {
-    const adminUser = executiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
-    onMobileLoginUser(adminUser);
+    setSuccessMsg(null);
+    setStep('enter_mobile');
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center px-4 py-8 font-sans antialiased selection:bg-sky-500 selection:text-slate-950">
-      <div className="w-full max-w-md space-y-5">
-        {/* App Logo & Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-blue-700 shadow-xl shadow-sky-500/20 text-white font-black text-2xl mb-1 ring-4 ring-sky-500/20">
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 selection:bg-sky-500 selection:text-slate-950">
+      {/* Hidden container for Firebase invisible reCAPTCHA */}
+      <div id="recaptcha-container"></div>
+
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden backdrop-blur-xl">
+        {/* Glow backdrop */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        {/* Company Header */}
+        <div className="text-center space-y-2 relative">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-blue-700 mx-auto flex items-center justify-center shadow-lg shadow-sky-500/20 text-white font-black text-lg">
             uPVC
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-white">
-            SCRAFT uPVC Profiles
-          </h1>
-          <p className="text-xs text-sky-400 font-semibold uppercase tracking-wider">
-            Raviraja Industries • Sales Visit Portal
-          </p>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            Log in with your registered Sales Person mobile number or Gmail account to access visits.
-          </p>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              SCRAFT uPVC Profiles
+            </h1>
+            <p className="text-xs text-sky-400 font-semibold tracking-wide mt-0.5">
+              Raviraja Industries • Field Sales Portal
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/80 text-[11px] text-slate-300">
+            <Shield className="w-3.5 h-3.5 text-sky-400" />
+            <span>Secure Multi-User Role & Territory Login</span>
+          </div>
         </div>
 
-        {/* Login Method Tabs */}
-        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-2xl">
+        {/* Method Switcher Tabs */}
+        <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
           <button
             type="button"
             onClick={() => {
               setActiveMethod('mobile');
               setErrorMsg(null);
             }}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+            className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
               activeMethod === 'mobile'
-                ? 'bg-sky-500 text-slate-950 shadow-md font-extrabold'
+                ? 'bg-sky-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Phone className="w-4 h-4" />
-            <span>Sales Mobile OTP</span>
+            <Phone className="w-3.5 h-3.5" />
+            <span>Mobile (+91) OTP</span>
           </button>
           <button
             type="button"
@@ -191,241 +242,198 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
               setActiveMethod('gmail');
               setErrorMsg(null);
             }}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+            className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
               activeMethod === 'gmail'
-                ? 'bg-sky-500 text-slate-950 shadow-md font-extrabold'
+                ? 'bg-sky-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Mail className="w-4 h-4" />
-            <span>Login with Gmail</span>
+            <Mail className="w-3.5 h-3.5" />
+            <span>Admin Gmail</span>
           </button>
         </div>
 
-        {/* Prominent Generated OTP Notification Alert (When Step 2) */}
-        {step === 'enter_otp' && generatedOtp && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-sky-950 border-2 border-emerald-500 shadow-2xl space-y-2 animate-fadeIn">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>SMS OTP Received!</span>
-              </span>
-              <span className="text-[10px] text-slate-400">Instant Verification</span>
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950/80 border border-emerald-500/40">
-              <span className="text-xs text-slate-300 font-medium">Your 6-Digit Code:</span>
-              <span className="text-xl font-black font-mono tracking-widest text-emerald-400">
-                {generatedOtp}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleVerifyAndLogin}
-              className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
-            >
-              <UserCheck className="w-4 h-4" />
-              <span>One-Click Verify & Enter App</span>
-            </button>
-          </div>
-        )}
-
-        {/* Error / Success Notifications */}
-        {authError && (
-          <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-xs flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <span className="text-amber-200">{authError.message || 'Authentication error.'}</span>
-          </div>
-        )}
-
+        {/* Messages */}
         {errorMsg && (
-          <div className="p-3 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-xs flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-            <span className="text-rose-200">{errorMsg}</span>
+          <div className="p-3 bg-rose-950/40 border border-rose-800/50 rounded-2xl text-rose-300 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+            <div className="flex-1 font-medium">{errorMsg}</div>
           </div>
         )}
 
-        {successMsg && !generatedOtp && (
-          <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-xs flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-            <span className="text-emerald-200">{successMsg}</span>
+        {authError?.message && !errorMsg && (
+          <div className="p-3 bg-amber-950/40 border border-amber-800/50 rounded-2xl text-amber-300 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+            <div className="flex-1 font-medium">{authError.message}</div>
           </div>
         )}
 
-        {/* Method 1: Sales Person Mobile Login */}
+        {successMsg && (
+          <div className="p-3 bg-emerald-950/40 border border-emerald-800/50 rounded-2xl text-emerald-300 text-xs flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+            <div className="flex-1 font-medium">{successMsg}</div>
+          </div>
+        )}
+
+        {/* METHOD 1: MOBILE NUMBER OTP FLOW */}
         {activeMethod === 'mobile' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <Phone className="w-4 h-4 text-sky-400" />
-                <span>Sales Person Mobile & OTP Login</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                Enter your 10-digit Indian mobile number to get an instant SMS OTP
-              </p>
-            </div>
-
-            {/* Step 1: Input Mobile Number */}
+          <div className="space-y-4">
             {step === 'enter_mobile' ? (
-              <form onSubmit={handleSendOtp} className="space-y-3">
-                <div className="space-y-1.5 text-xs">
-                  <label className="text-[10px] text-slate-400 block font-semibold">
-                    Indian Mobile Number (+91)
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                    <span>Registered Indian Mobile Number</span>
+                    <span className="text-[10px] text-sky-400 font-normal">+91 format</span>
                   </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3 text-xs font-mono font-bold text-sky-400">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs font-mono font-bold">
                       +91
-                    </span>
+                    </div>
                     <input
                       type="tel"
-                      required
                       value={mobileNumber.replace(/^\+91\s*/, '')}
-                      onChange={(e) => setMobileNumber(`+91 ${e.target.value.replace(/\D/g, '').slice(0, 10)}`)}
+                      onChange={(e) => setMobileNumber(e.target.value)}
                       placeholder="94400 42407"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500 text-sm tracking-wider"
+                      maxLength={14}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-2xl pl-12 pr-4 py-3 text-white text-sm font-mono placeholder:text-slate-600 outline-none transition"
+                      required
+                      autoFocus
                     />
                   </div>
-                  <span className="text-[10px] text-slate-500 block">
-                    Format: 10 digits e.g. 9440042407
-                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    Only active SCRAFT employees registered by Admin can sign in.
+                  </p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isSendingOtp}
-                  className="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md disabled:opacity-50"
+                  disabled={isSendingOtp || !mobileNumber.trim()}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-extrabold text-sm shadow-lg shadow-sky-500/25 transition active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {isSendingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  <span>{isSendingOtp ? 'Sending SMS OTP...' : 'Send SMS OTP to Mobile'}</span>
+                  {isSendingOtp ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Sending Official OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Send OTP Code</span>
+                    </>
+                  )}
                 </button>
               </form>
             ) : (
-              /* Step 2: Input OTP */
-              <form onSubmit={handleVerifyAndLogin} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Enter OTP Code</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('enter_mobile');
-                      setGeneratedOtp(null);
-                    }}
-                    className="text-[10px] text-sky-400 underline hover:text-sky-300"
-                  >
-                    Change Number
-                  </button>
-                </div>
-
-                <div className="space-y-1.5 text-xs">
-                  <input
-                    type="text"
-                    required
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="Enter 6-digit OTP"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-white font-mono tracking-widest text-center focus:outline-none focus:border-emerald-500"
-                  />
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                    <span>Sent to: <strong className="text-white font-mono">{mobileNumber}</strong></span>
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-300">Enter OTP Verification Code</span>
                     <button
                       type="button"
-                      onClick={handleSendOtp}
-                      className="text-sky-400 hover:underline"
+                      onClick={() => setStep('enter_mobile')}
+                      className="text-sky-400 hover:underline text-[11px]"
                     >
-                      Resend OTP
+                      Change Number
                     </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Enter 6-digit code (e.g. 123456)"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-2xl pl-10 pr-4 py-3 text-white text-base tracking-widest font-mono text-center placeholder:tracking-normal placeholder:text-slate-600 outline-none transition"
+                      required
+                      autoFocus
+                    />
                   </div>
                 </div>
 
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Didn't receive code?</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSendOtp()}
+                    disabled={resendCooldown > 0 || isSendingOtp}
+                    className="text-sky-400 hover:text-sky-300 font-semibold disabled:text-slate-600 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>{resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}</span>
+                  </button>
+                </div>
+
                 <button
                   type="submit"
-                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+                  disabled={isVerifyingOtp || otpCode.length < 4}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 transition active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <UserCheck className="w-4 h-4" />
-                  <span>Verify OTP & Enter App</span>
+                  {isVerifyingOtp ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Verifying & Establishing Session...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="w-4 h-4" />
+                      <span>Verify OTP & Log In</span>
+                    </>
+                  )}
                 </button>
               </form>
             )}
 
-            {/* Quick Self-Registration if number not found */}
-            {isUnregistered && (
-              <form onSubmit={handleRegisterAndSendOtp} className="p-3.5 rounded-2xl bg-sky-950/40 border border-sky-500/40 space-y-2.5 text-xs">
-                <span className="font-bold text-sky-300 block">
-                  Quick Register as Sales Person:
-                </span>
-                <input
-                  type="text"
-                  required
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Your Full Name (e.g. Ramesh Kumar)"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
-                />
-                <button
-                  type="submit"
-                  className="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition"
-                >
-                  Register & Get OTP
-                </button>
-              </form>
-            )}
-
-            {/* Direct Quick-Tap Links for Registered Salespersons */}
-            <div className="pt-2 border-t border-slate-800 space-y-1.5">
-              <span className="text-[11px] text-slate-400 font-semibold block">
-                Tap to Login with Registered Account:
+            {/* Quick pre-registered employee logins */}
+            <div className="pt-2 border-t border-slate-800/80 space-y-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Registered Sales Personnel (1-Tap Selection):
               </span>
-              <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
-                {employees
-                  .filter((e) => e.status === 'Active')
-                  .map((emp) => (
-                    <button
-                      key={emp.id}
-                      type="button"
-                      onClick={() => handleQuickSelectEmployee(emp.mobileNumber, emp.name)}
-                      className={`p-2.5 rounded-xl border flex items-center justify-between text-left text-xs transition ${
-                        emp.role === 'admin'
-                          ? 'border-amber-500/40 bg-amber-950/30 hover:bg-amber-950/50 text-amber-200'
-                          : 'border-slate-800 bg-slate-800/70 hover:bg-slate-800 text-slate-200'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5 font-bold">
-                          <span>{emp.name}</span>
-                          <span
-                            className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                              emp.role === 'admin'
-                                ? 'bg-amber-500 text-slate-950'
-                                : 'bg-sky-500 text-slate-950'
-                            }`}
-                          >
-                            {emp.role.toUpperCase()}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {emp.mobileNumber} • {emp.designation} ({emp.assignedState})
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                {employees.map((emp) => (
+                  <button
+                    key={emp.id}
+                    type="button"
+                    onClick={() => handleQuickSelect(emp.mobileNumber)}
+                    className="w-full text-left p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800/70 hover:border-slate-700 flex items-center justify-between transition group"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-white group-hover:text-sky-300">
+                          {emp.name}
+                        </span>
+                        <span
+                          className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
+                            emp.role === 'admin'
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                          }`}
+                        >
+                          {emp.role.toUpperCase()}
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-mono">
+                          {emp.assignedState}
                         </span>
                       </div>
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    </button>
-                  ))}
+                      <span className="text-[11px] text-slate-400 font-mono">{emp.mobileNumber}</span>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-sky-400 transition transform group-hover:translate-x-0.5" />
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* Method 2: Gmail Login */}
+        {/* METHOD 2: GMAIL / GOOGLE SIGN-IN FLOW */}
         {activeMethod === 'gmail' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <Shield className="w-4 h-4 text-sky-400" />
-                <span>Google / Gmail Account Login</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                Log in securely using your authorized corporate Gmail address
+          <div className="space-y-4">
+            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-sky-400 font-bold">
+                <Building2 className="w-4 h-4" />
+                <span>Raviraja Industries Administrator Access</span>
+              </div>
+              <p className="text-slate-400">
+                Sign in with the corporate Google account (<code className="text-sky-300">ravirajaindustries@gmail.com</code>) to access the complete All-India Sales Dashboard, team management, and company-wide reports.
               </p>
             </div>
 
@@ -433,9 +441,9 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
               type="button"
               onClick={onGoogleLogin}
               disabled={isLoggingIn}
-              className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-3 transition active:scale-95 disabled:opacity-60 shadow-lg shadow-black/30"
+              className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs sm:text-sm shadow-xl transition active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer"
             >
-              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -453,53 +461,22 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>{isLoggingIn ? 'Connecting to Google...' : 'Continue with Gmail / Google'}</span>
+              <span>{isLoggingIn ? 'Connecting Google Account...' : 'Continue with Google Account'}</span>
             </button>
 
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-800"></div>
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                Or 1-Click Admin
-              </span>
-              <div className="flex-grow border-t border-slate-800"></div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/30 border border-amber-500/40 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Raviraja Admin Email</span>
-                </span>
-                <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-slate-950">
-                  DIRECT ACCESS
-                </span>
-              </div>
+            {/* Quick 1-Click Executive Connect */}
+            <div className="pt-2 border-t border-slate-800">
               <button
                 type="button"
-                onClick={handleAdminEmailLogin}
-                className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-xs flex items-center justify-between transition active:scale-95 shadow-md"
+                onClick={() => onExecutiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin')}
+                className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-bold text-xs transition flex items-center justify-center gap-2"
               >
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-amber-700 flex items-center justify-center font-bold text-white text-xs">
-                    R
-                  </div>
-                  <div className="text-left">
-                    <span className="block leading-tight font-extrabold text-white">Raviraja Admin</span>
-                    <span className="text-[10px] text-amber-100 block font-normal">
-                      ravirajaindustries@gmail.com
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-white" />
+                <Shield className="w-3.5 h-3.5" />
+                <span>1-Click Admin Access (Raviraja Admin)</span>
               </button>
             </div>
           </div>
         )}
-
-        {/* Footer info */}
-        <p className="text-[11px] text-center text-slate-500">
-          SCRAFT Fenestrations & Profiles • Secure Enterprise System
-        </p>
       </div>
     </div>
   );

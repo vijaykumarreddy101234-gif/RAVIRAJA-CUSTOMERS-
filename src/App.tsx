@@ -42,51 +42,25 @@ export default function App() {
 
   const isAdmin = user?.role === 'admin';
   const authorizedVisits = useMemo(() => {
-    if (isAdmin || !user) return visits;
+    if (!user) return [];
+    if (isAdmin) return visits;
     return visits.filter(
       (v) =>
         v.salesExecutiveName === user.displayName ||
         v.executiveEmail === user.email ||
-        v.salesExecutiveName?.toLowerCase().includes((user.displayName || '').toLowerCase())
+        (v.salesExecutiveName && user.displayName && v.salesExecutiveName.toLowerCase().trim() === user.displayName.toLowerCase().trim()) ||
+        (v.userId && v.userId === user.uid)
     );
   }, [visits, user, isAdmin]);
 
   const defaultExecutive = user?.displayName || VisitStorageService.getSalesExecutiveName();
 
+  // 1. App-wide listeners: Auth state and sales employee directory
   useEffect(() => {
-    // 1. Load cached local visits immediately for instant zero-latency render
-    const initialLocal = VisitStorageService.getVisits();
-    setVisits(initialLocal);
-
-    // 2. Attach real-time Firestore listener for customer visits across all devices
-    const unsubscribeVisits = FirestoreSyncService.subscribeToVisits(
-      (cloudVisits) => {
-        if (cloudVisits && cloudVisits.length > 0) {
-          setVisits(cloudVisits);
-          VisitStorageService.saveVisits(cloudVisits);
-          setIsCloudConnected(true);
-        } else if (initialLocal.length > 0) {
-          // If cloud has zero records but we have local records, push them to cloud
-          FirestoreSyncService.syncInitialVisits(initialLocal);
-        }
-      },
-      (error) => {
-        console.warn('Real-time sync notice:', error);
-        setIsCloudConnected(false);
-      }
-    );
-
-    // 3. Initial sync of local visits to Firestore so other devices get them immediately
-    if (initialLocal.length > 0) {
-      FirestoreSyncService.syncInitialVisits(initialLocal);
-    }
-
-    // 4. Real-time Firestore listener for sales employees
     const unsubscribeEmployees = EmployeeService.subscribeToEmployees((emps) => {
       setEmployees(emps);
     });
 
-    // 5. Auth state listener
     const unsubscribeAuth = initAuth(
       (currentUser) => {
         setUser(currentUser);
@@ -97,11 +71,48 @@ export default function App() {
     );
 
     return () => {
-      if (unsubscribeVisits) unsubscribeVisits();
       if (unsubscribeEmployees) unsubscribeEmployees();
       if (unsubscribeAuth) unsubscribeAuth();
     };
   }, []);
+
+  // 2. User-specific visits data sync: Isolated and secured per user session
+  useEffect(() => {
+    if (!user) {
+      setVisits([]);
+      return;
+    }
+
+    // Load partitioned local visits immediately for instant render without cross-account leak
+    const initialLocal = VisitStorageService.getVisits(
+      user.uid,
+      user.role,
+      user.displayName || undefined
+    );
+    setVisits(initialLocal);
+
+    // Attach server-authorized Firestore listener
+    const unsubscribeVisits = FirestoreSyncService.subscribeToVisits(
+      user,
+      (cloudVisits) => {
+        if (cloudVisits && cloudVisits.length > 0) {
+          setVisits(cloudVisits);
+          VisitStorageService.saveVisits(cloudVisits, user.uid, user.role);
+          setIsCloudConnected(true);
+        } else if (initialLocal.length > 0) {
+          FirestoreSyncService.syncInitialVisits(initialLocal, user);
+        }
+      },
+      (error) => {
+        console.warn('Real-time sync notice:', error);
+        setIsCloudConnected(false);
+      }
+    );
+
+    return () => {
+      if (unsubscribeVisits) unsubscribeVisits();
+    };
+  }, [user]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -158,18 +169,21 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    const currentUid = user?.uid;
     await logout();
     setUser(null);
-    showToast('Signed out from Google account');
+    setVisits([]);
+    VisitStorageService.clearSessionData(currentUid);
+    showToast('Signed out from account');
   };
 
   // Manual Force Push & Sync All Records
   const handleForceSync = async () => {
     setIsSyncing(true);
     try {
-      const count = await FirestoreSyncService.pushAllVisitsToCloud(visits);
+      const count = await FirestoreSyncService.pushAllVisitsToCloud(authorizedVisits, user);
       setIsCloudConnected(true);
-      showToast(`✓ Real-time Sync Complete: ${count} customer visits pushed to Cloud Firestore across all devices!`);
+      showToast(`✓ Real-time Sync Complete: ${count} authorized customer visits synced to Cloud Firestore!`);
     } catch (err: any) {
       console.error(err);
       showToast('Sync notice: Working with cached records');
@@ -180,17 +194,19 @@ export default function App() {
 
   // 1. Submit New Visit: Saves to Local + Pushes to Firestore IMMEDIATELY
   const handleSubmitVisit = async (newVisit: CustomerVisit) => {
-    const visitWithEmail: CustomerVisit = {
+    const visitWithAuth: CustomerVisit = {
       ...newVisit,
-      executiveEmail: user?.email || newVisit.executiveEmail || 'ravirajaindustries@gmail.com',
+      salesExecutiveName: user?.displayName || newVisit.salesExecutiveName || defaultExecutive,
+      executiveEmail: user?.email || newVisit.executiveEmail || 'nagarjuna@scraft.in',
+      userId: user?.uid,
     };
 
     // Save locally
-    const updated = VisitStorageService.addVisit(visitWithEmail);
+    const updated = VisitStorageService.addVisit(visitWithAuth, user?.uid, user?.role);
     setVisits(updated);
 
     // Push to Firestore in background
-    FirestoreSyncService.saveVisit(visitWithEmail)
+    FirestoreSyncService.saveVisit(visitWithAuth, user)
       .then(() => {
         setIsCloudConnected(true);
       })
@@ -209,11 +225,11 @@ export default function App() {
 
   // 2. Update Visit: Updates Local + Pushes to Firestore
   const handleUpdateVisit = async (updatedVisit: CustomerVisit) => {
-    const updated = VisitStorageService.updateVisit(updatedVisit);
+    const updated = VisitStorageService.updateVisit(updatedVisit, user?.uid, user?.role);
     setVisits(updated);
     setSelectedVisit(updatedVisit);
 
-    FirestoreSyncService.saveVisit(updatedVisit)
+    FirestoreSyncService.saveVisit(updatedVisit, user)
       .then(() => {
         setIsCloudConnected(true);
       })
@@ -224,9 +240,14 @@ export default function App() {
     showToast('✓ Customer visit record updated & synced');
   };
 
-  // 3. Delete Visit: Deletes from Local + Deletes from Firestore
+  // 3. Delete Visit: Deletes from Local + Deletes from Firestore (Admin only)
   const handleDeleteVisit = async (id: string) => {
-    const updated = VisitStorageService.deleteVisit(id);
+    if (user?.role !== 'admin') {
+      showToast('Action restricted: Only administrators can delete customer records.');
+      return;
+    }
+
+    const updated = VisitStorageService.deleteVisit(id, user?.uid, user?.role, user?.displayName || undefined);
     setVisits(updated);
 
     FirestoreSyncService.deleteVisit(id)
@@ -253,14 +274,16 @@ export default function App() {
   const handleImportVisits = async (newVisits: CustomerVisit[]) => {
     const visitsWithEmail = newVisits.map((v) => ({
       ...v,
+      salesExecutiveName: user?.role === 'sales' ? user.displayName || v.salesExecutiveName : v.salesExecutiveName,
       executiveEmail: user?.email || v.executiveEmail || 'ravirajaindustries@gmail.com',
+      userId: user?.uid,
     }));
 
-    const updated = VisitStorageService.batchImportVisits(visitsWithEmail);
+    const updated = VisitStorageService.batchImportVisits(visitsWithEmail, user?.uid, user?.role);
     setVisits(updated);
 
-    FirestoreSyncService.pushAllVisitsToCloud(visitsWithEmail)
-      .then((count) => {
+    FirestoreSyncService.pushAllVisitsToCloud(visitsWithEmail, user)
+      .then(() => {
         setIsCloudConnected(true);
       })
       .catch((err) => {
@@ -272,15 +295,21 @@ export default function App() {
     setCurrentTab('list');
   };
 
-
   const handleExportExcel = () => {
-    ExportVisitService.exportToExcel(visits);
-    showToast('Excel report downloaded (.xlsx)');
+    const filenamePrefix = user?.role === 'sales'
+      ? `SCRAFT_uPVC_Visits_${(user.displayName || 'Sales').replace(/\s+/g, '_')}`
+      : 'SCRAFT_uPVC_Customer_Visits_Raviraja';
+    ExportVisitService.exportToExcel(authorizedVisits, filenamePrefix);
+    showToast(`Excel report downloaded (${authorizedVisits.length} authorized records)`);
   };
 
   const handleExportPdf = () => {
-    ExportVisitService.exportToPdf(visits);
-    showToast('PDF report downloaded (.pdf)');
+    ExportVisitService.exportToPdf(authorizedVisits, undefined, {
+      name: user?.displayName,
+      role: user?.role,
+      territory: user?.assignedState,
+    });
+    showToast(`PDF report downloaded (${authorizedVisits.length} authorized records)`);
   };
 
   // Load the attached SCRAFT workspace file
@@ -388,7 +417,7 @@ export default function App() {
         isLoggingIn={isLoggingIn}
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
-        visitCount={visits.length}
+        visitCount={authorizedVisits.length}
         isCloudConnected={isCloudConnected}
         onForceSync={handleForceSync}
         isSyncing={isSyncing}

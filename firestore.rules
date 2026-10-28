@@ -17,13 +17,19 @@ service cloud.firestore {
       allow write: if isValidId(visitId);
     }
 
+    // Sales employees directory and permissions
+    match /sales_employees/{empId} {
+      allow read: if true;
+      allow write: if isValidId(empId);
+    }
+
     // uPVC Profile Cutting & Wastage Optimization Projects
     match /upvc_wastage_projects/{projectId} {
       allow read: if true;
       allow write: if isValidId(projectId);
     }
 
-    // Default catch-all
+    // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
     }

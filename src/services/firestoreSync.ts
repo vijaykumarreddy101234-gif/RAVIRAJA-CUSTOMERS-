@@ -7,11 +7,12 @@ import {
   onSnapshot,
   getDocs,
   query,
+  where,
   getDocFromServer,
 } from 'firebase/firestore';
 import { getApps, initializeApp, getApp } from 'firebase/app';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { auth } from './firebaseAuth';
+import { auth, AppUser } from './firebaseAuth';
 import { CustomerVisit } from '../types/customerVisit';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -104,14 +105,28 @@ export class FirestoreSyncService {
   }
 
   /**
-   * Subscribe to real-time updates for customer visits across all devices
+   * Subscribe to real-time updates for customer visits.
+   * STRICT ACCESS CONTROL:
+   * - Admin: queries all company visits
+   * - Sales: queries ONLY documents where salesExecutiveName matches the authenticated user
    */
   public static subscribeToVisits(
+    user: AppUser | null,
     onVisitsUpdated: (visits: CustomerVisit[]) => void,
     onError?: (err: any) => void
   ) {
+    if (!user) {
+      onVisitsUpdated([]);
+      return () => {};
+    }
+
     const visitsRef = collection(db, VISITS_COLLECTION);
-    const q = query(visitsRef);
+    const isAdmin = user.role === 'admin';
+
+    // Build scoped query: Sales persons only receive their own records from the database
+    const q = isAdmin
+      ? query(visitsRef)
+      : query(visitsRef, where('salesExecutiveName', '==', user.displayName || ''));
 
     return onSnapshot(
       q,
@@ -125,9 +140,19 @@ export class FirestoreSyncService {
           });
         });
 
+        // Double defensive verification: if not admin, ensure no other employee records leak
+        const filtered = isAdmin
+          ? remoteVisits
+          : remoteVisits.filter(
+              (v) =>
+                v.salesExecutiveName === user.displayName ||
+                v.executiveEmail === user.email ||
+                (v.userId && v.userId === user.uid)
+            );
+
         // Sort newest first
-        remoteVisits.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        onVisitsUpdated(remoteVisits);
+        filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        onVisitsUpdated(filtered);
       },
       (error) => {
         if (error.code === 'permission-denied' || error.message?.includes('permissions')) {
@@ -169,15 +194,18 @@ export class FirestoreSyncService {
   /**
    * Save or update a single customer visit in Firestore
    */
-  public static async saveVisit(visit: CustomerVisit): Promise<void> {
+  public static async saveVisit(visit: CustomerVisit, user?: AppUser | null): Promise<void> {
     const path = `${VISITS_COLLECTION}/${visit.id}`;
     try {
       const visitRef = doc(db, VISITS_COLLECTION, visit.id);
       const payload = FirestoreSyncService.cleanForFirestore({
         ...visit,
+        salesExecutiveName: visit.salesExecutiveName || user?.displayName || 'nagarjuna',
+        executiveEmail: visit.executiveEmail || user?.email || undefined,
+        userId: user?.uid || (visit as any).userId || undefined,
         updatedAt: Date.now(),
       });
-      await setDoc(visitRef, payload);
+      await setDoc(visitRef, payload, { merge: true });
     } catch (err: any) {
       if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
         handleFirestoreError(err, OperationType.WRITE, path);
@@ -188,7 +216,7 @@ export class FirestoreSyncService {
   }
 
   /**
-   * Delete a customer visit from Firestore
+   * Delete a customer visit from Firestore (Restricted to Admin)
    */
   public static async deleteVisit(id: string): Promise<void> {
     const path = `${VISITS_COLLECTION}/${id}`;
@@ -205,53 +233,33 @@ export class FirestoreSyncService {
   }
 
   /**
-   * Batch seed/sync local visits to Firestore so other devices get them immediately
+   * Push an array of visits to Firestore
    */
-  public static async syncInitialVisits(visits: CustomerVisit[]): Promise<void> {
-    if (!visits || visits.length === 0) return;
-    try {
-      const snapshot = await getDocs(collection(db, VISITS_COLLECTION));
-      const existingIds = new Set(snapshot.docs.map((d) => d.id));
-
-      for (const visit of visits) {
-        if (!existingIds.has(visit.id)) {
-          const payload = FirestoreSyncService.cleanForFirestore({
-            ...visit,
-            updatedAt: Date.now(),
-          });
-          await setDoc(doc(db, VISITS_COLLECTION, visit.id), payload);
-        }
+  public static async pushAllVisitsToCloud(visits: CustomerVisit[], user?: AppUser | null): Promise<number> {
+    let count = 0;
+    for (const v of visits) {
+      try {
+        await this.saveVisit(v, user);
+        count++;
+      } catch (e) {
+        console.warn(`Could not sync visit ${v.id}:`, e);
       }
-    } catch (err: any) {
-      if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
-        handleFirestoreError(err, OperationType.WRITE, VISITS_COLLECTION);
-      }
-      console.warn('Initial sync error:', err);
     }
+    return count;
   }
 
   /**
-   * Force push all local visits to cloud Firestore
+   * Initial sync: seed cloud database if empty
    */
-  public static async pushAllVisitsToCloud(visits: CustomerVisit[]): Promise<number> {
-    if (!visits || visits.length === 0) return 0;
+  public static async syncInitialVisits(initialVisits: CustomerVisit[], user?: AppUser | null): Promise<void> {
     try {
-      let count = 0;
-      for (const visit of visits) {
-        const payload = FirestoreSyncService.cleanForFirestore({
-          ...visit,
-          updatedAt: Date.now(),
-        });
-        await setDoc(doc(db, VISITS_COLLECTION, visit.id), payload);
-        count++;
+      const snapshot = await getDocs(collection(db, VISITS_COLLECTION));
+      if (snapshot.empty && initialVisits.length > 0) {
+        console.log(`Seeding ${initialVisits.length} visits to Cloud Firestore...`);
+        await this.pushAllVisitsToCloud(initialVisits, user);
       }
-      return count;
     } catch (err: any) {
-      if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
-        handleFirestoreError(err, OperationType.WRITE, VISITS_COLLECTION);
-      }
-      console.error('Error pushing visits to cloud:', err);
-      throw err;
+      console.warn('Initial visits cloud seed notice:', err);
     }
   }
 }
