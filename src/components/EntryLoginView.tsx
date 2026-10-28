@@ -12,6 +12,7 @@ import {
   Loader2,
   Sparkles,
   Building2,
+  UserPlus,
 } from 'lucide-react';
 import { AppUser, loginWithMobileNumber, executiveLogin } from '../services/firebaseAuth';
 import { EmployeeService } from '../services/employeeService';
@@ -31,8 +32,8 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
   isLoggingIn,
   authError,
 }) => {
-  const [activeMethod, setActiveMethod] = useState<'gmail' | 'mobile'>('gmail');
-  const [mobileNumber, setMobileNumber] = useState('+91 ');
+  const [activeMethod, setActiveMethod] = useState<'gmail' | 'mobile'>('mobile'); // Default to mobile as requested
+  const [mobileNumber, setMobileNumber] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
   const [step, setStep] = useState<'enter_mobile' | 'enter_otp'>('enter_mobile');
@@ -40,28 +41,34 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // New employee self-registration state if number not in database
+  const [isUnregistered, setIsUnregistered] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newState, setNewState] = useState('Telangana');
+
   const employees = EmployeeService.getEmployees();
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+    setIsUnregistered(false);
 
     const cleanMobile = mobileNumber.trim();
-    if (!cleanMobile || cleanMobile.length < 10) {
-      setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+    const digits = EmployeeService.normalizePhone(cleanMobile);
+    if (!digits || digits.length < 10) {
+      setErrorMsg('Please enter a valid 10-digit Indian mobile number (e.g. 9440042407).');
       return;
     }
 
     setIsSendingOtp(true);
     setTimeout(() => {
-      const emp = employees.find(
-        (em) => em.mobileNumber.replace(/\s+/g, '') === cleanMobile.replace(/\s+/g, '')
-      );
+      const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
 
       if (!emp) {
         setIsSendingOtp(false);
-        setErrorMsg('Mobile number not registered in SCRAFT employee database. Contact Admin.');
+        setIsUnregistered(true);
+        setErrorMsg(`Mobile number +91 ${digits} is not yet in directory. Enter your name below to register as Sales Person.`);
         return;
       }
 
@@ -77,13 +84,32 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
         return;
       }
 
-      const mockOtp = '123456';
+      const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
       setGeneratedOtp(mockOtp);
       setOtpCode(mockOtp);
       setStep('enter_otp');
       setIsSendingOtp(false);
-      setSuccessMsg(`✓ SMS OTP successfully sent to ${emp.mobileNumber}. Code: ${mockOtp}`);
-    }, 300);
+      setSuccessMsg(`✓ SMS OTP dispatched to ${emp.name} (+91 ${digits})! Code: ${mockOtp}`);
+    }, 250);
+  };
+
+  const handleRegisterAndSendOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) {
+      setErrorMsg('Please enter your full name to register.');
+      return;
+    }
+
+    const digits = EmployeeService.normalizePhone(mobileNumber);
+    const newEmp = EmployeeService.registerSalesEmployee(newName.trim(), `+91 ${digits}`, newState);
+
+    const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedOtp(mockOtp);
+    setOtpCode(mockOtp);
+    setStep('enter_otp');
+    setIsUnregistered(false);
+    setErrorMsg(null);
+    setSuccessMsg(`✓ Registered ${newEmp.name} as Sales Person! OTP code is: ${mockOtp}`);
   };
 
   const handleVerifyAndLogin = (e: React.FormEvent) => {
@@ -101,10 +127,21 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
       setSuccessMsg(`✓ Verified! Welcome ${result.user.displayName} (${result.user.role.toUpperCase()})`);
       setTimeout(() => {
         onMobileLoginUser(result.user!);
-      }, 400);
+      }, 300);
     } else {
       setErrorMsg(result.errorMessage || 'Invalid OTP verification code.');
     }
+  };
+
+  const handleQuickSelectEmployee = (empMobile: string, empName: string) => {
+    setMobileNumber(empMobile);
+    const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedOtp(mockOtp);
+    setOtpCode(mockOtp);
+    setStep('enter_otp');
+    setErrorMsg(null);
+    setIsUnregistered(false);
+    setSuccessMsg(`✓ SMS OTP sent to ${empName} (${empMobile})! OTP: ${mockOtp}`);
   };
 
   const handleAdminEmailLogin = () => {
@@ -114,7 +151,7 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center px-4 py-8 font-sans antialiased selection:bg-sky-500 selection:text-slate-950">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-5">
         {/* App Logo & Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-blue-700 shadow-xl shadow-sky-500/20 text-white font-black text-2xl mb-1 ring-4 ring-sky-500/20">
@@ -127,27 +164,12 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
             Raviraja Industries • Sales Visit Portal
           </p>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            Please log in with your Gmail account or registered Sales Person mobile number to access your portal.
+            Log in with your registered Sales Person mobile number or Gmail account to access visits.
           </p>
         </div>
 
         {/* Login Method Tabs */}
         <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-2xl">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveMethod('gmail');
-              setErrorMsg(null);
-            }}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-              activeMethod === 'gmail'
-                ? 'bg-sky-500 text-slate-950 shadow-md font-extrabold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Mail className="w-4 h-4" />
-            <span>Login with Gmail</span>
-          </button>
           <button
             type="button"
             onClick={() => {
@@ -163,7 +185,49 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
             <Phone className="w-4 h-4" />
             <span>Sales Mobile OTP</span>
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMethod('gmail');
+              setErrorMsg(null);
+            }}
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              activeMethod === 'gmail'
+                ? 'bg-sky-500 text-slate-950 shadow-md font-extrabold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            <span>Login with Gmail</span>
+          </button>
         </div>
+
+        {/* Prominent Generated OTP Notification Alert (When Step 2) */}
+        {step === 'enter_otp' && generatedOtp && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-sky-950 border-2 border-emerald-500 shadow-2xl space-y-2 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>SMS OTP Received!</span>
+              </span>
+              <span className="text-[10px] text-slate-400">Instant Verification</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950/80 border border-emerald-500/40">
+              <span className="text-xs text-slate-300 font-medium">Your 6-Digit Code:</span>
+              <span className="text-xl font-black font-mono tracking-widest text-emerald-400">
+                {generatedOtp}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleVerifyAndLogin}
+              className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>One-Click Verify & Enter App</span>
+            </button>
+          </div>
+        )}
 
         {/* Error / Success Notifications */}
         {authError && (
@@ -180,14 +244,179 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
           </div>
         )}
 
-        {successMsg && (
+        {successMsg && !generatedOtp && (
           <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-xs flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span className="text-emerald-200">{successMsg}</span>
           </div>
         )}
 
-        {/* Method 1: Login with Gmail & Admin */}
+        {/* Method 1: Sales Person Mobile Login */}
+        {activeMethod === 'mobile' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Phone className="w-4 h-4 text-sky-400" />
+                <span>Sales Person Mobile & OTP Login</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Enter your 10-digit Indian mobile number to get an instant SMS OTP
+              </p>
+            </div>
+
+            {/* Step 1: Input Mobile Number */}
+            {step === 'enter_mobile' ? (
+              <form onSubmit={handleSendOtp} className="space-y-3">
+                <div className="space-y-1.5 text-xs">
+                  <label className="text-[10px] text-slate-400 block font-semibold">
+                    Indian Mobile Number (+91)
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-mono font-bold text-sky-400">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      required
+                      value={mobileNumber.replace(/^\+91\s*/, '')}
+                      onChange={(e) => setMobileNumber(`+91 ${e.target.value.replace(/\D/g, '').slice(0, 10)}`)}
+                      placeholder="94400 42407"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500 text-sm tracking-wider"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">
+                    Format: 10 digits e.g. 9440042407
+                  </span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSendingOtp}
+                  className="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md disabled:opacity-50"
+                >
+                  {isSendingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  <span>{isSendingOtp ? 'Sending SMS OTP...' : 'Send SMS OTP to Mobile'}</span>
+                </button>
+              </form>
+            ) : (
+              /* Step 2: Input OTP */
+              <form onSubmit={handleVerifyAndLogin} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Enter OTP Code</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('enter_mobile');
+                      setGeneratedOtp(null);
+                    }}
+                    className="text-[10px] text-sky-400 underline hover:text-sky-300"
+                  >
+                    Change Number
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <input
+                    type="text"
+                    required
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="Enter 6-digit OTP"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-white font-mono tracking-widest text-center focus:outline-none focus:border-emerald-500"
+                  />
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                    <span>Sent to: <strong className="text-white font-mono">{mobileNumber}</strong></span>
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      className="text-sky-400 hover:underline"
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>Verify OTP & Enter App</span>
+                </button>
+              </form>
+            )}
+
+            {/* Quick Self-Registration if number not found */}
+            {isUnregistered && (
+              <form onSubmit={handleRegisterAndSendOtp} className="p-3.5 rounded-2xl bg-sky-950/40 border border-sky-500/40 space-y-2.5 text-xs">
+                <span className="font-bold text-sky-300 block">
+                  Quick Register as Sales Person:
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Your Full Name (e.g. Ramesh Kumar)"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
+                />
+                <button
+                  type="submit"
+                  className="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition"
+                >
+                  Register & Get OTP
+                </button>
+              </form>
+            )}
+
+            {/* Direct Quick-Tap Links for Registered Salespersons */}
+            <div className="pt-2 border-t border-slate-800 space-y-1.5">
+              <span className="text-[11px] text-slate-400 font-semibold block">
+                Tap to Login with Registered Account:
+              </span>
+              <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
+                {employees
+                  .filter((e) => e.status === 'Active')
+                  .map((emp) => (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      onClick={() => handleQuickSelectEmployee(emp.mobileNumber, emp.name)}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between text-left text-xs transition ${
+                        emp.role === 'admin'
+                          ? 'border-amber-500/40 bg-amber-950/30 hover:bg-amber-950/50 text-amber-200'
+                          : 'border-slate-800 bg-slate-800/70 hover:bg-slate-800 text-slate-200'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <span>{emp.name}</span>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                              emp.role === 'admin'
+                                ? 'bg-amber-500 text-slate-950'
+                                : 'bg-sky-500 text-slate-950'
+                            }`}
+                          >
+                            {emp.role.toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {emp.mobileNumber} • {emp.designation} ({emp.assignedState})
+                        </span>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Method 2: Gmail Login */}
         {activeMethod === 'gmail' && (
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
             <div className="space-y-1">
@@ -200,7 +429,6 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
               </p>
             </div>
 
-            {/* Official Google Sign-In Button */}
             <button
               type="button"
               onClick={onGoogleLogin}
@@ -230,11 +458,12 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
 
             <div className="relative flex py-1 items-center">
               <div className="flex-grow border-t border-slate-800"></div>
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase tracking-wider font-bold">Or 1-Click Admin</span>
+              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                Or 1-Click Admin
+              </span>
               <div className="flex-grow border-t border-slate-800"></div>
             </div>
 
-            {/* 1-Click Raviraja Admin Access */}
             <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/30 border border-amber-500/40 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
@@ -256,133 +485,13 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
                   </div>
                   <div className="text-left">
                     <span className="block leading-tight font-extrabold text-white">Raviraja Admin</span>
-                    <span className="text-[10px] text-amber-100 block font-normal">ravirajaindustries@gmail.com</span>
+                    <span className="text-[10px] text-amber-100 block font-normal">
+                      ravirajaindustries@gmail.com
+                    </span>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-white" />
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* Method 2: Sales Person Mobile Login */}
-        {activeMethod === 'mobile' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <Phone className="w-4 h-4 text-sky-400" />
-                <span>Sales Person Mobile & OTP Login</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                Log in with your registered Indian mobile number (+91)
-              </p>
-            </div>
-
-            {step === 'enter_mobile' ? (
-              <form onSubmit={handleSendOtp} className="space-y-3">
-                <div className="space-y-1.5 text-xs">
-                  <label className="text-[10px] text-slate-400 block font-semibold">Registered Indian Mobile Number</label>
-                  <input
-                    type="text"
-                    required
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
-                    placeholder="+91 98250 00000"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
-                  />
-                  <span className="text-[10px] text-slate-500 block">
-                    Only admin-approved active sales employees can log in.
-                  </span>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSendingOtp}
-                  className="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md disabled:opacity-50"
-                >
-                  {isSendingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  <span>{isSendingOtp ? 'Sending SMS OTP...' : 'Send SMS OTP'}</span>
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyAndLogin} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Enter OTP Verification Code</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setStep('enter_mobile')}
-                    className="text-[10px] text-sky-400 underline hover:text-sky-300"
-                  >
-                    Change Number
-                  </button>
-                </div>
-
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-slate-400 block">6-Digit OTP Code</label>
-                    {generatedOtp && (
-                      <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800">
-                        Test OTP: {generatedOtp}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="123456"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono tracking-widest text-center focus:outline-none focus:border-emerald-500"
-                  />
-                  <span className="text-[10px] text-slate-400 block text-center">
-                    OTP sent via SMS gateway to <strong className="text-white">{mobileNumber}</strong>
-                  </span>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  <span>Verify OTP & Enter App</span>
-                </button>
-              </form>
-            )}
-
-            {/* Quick Test Links for Sales Employees */}
-            <div className="pt-2 border-t border-slate-800 space-y-1.5">
-              <span className="text-[11px] text-slate-400 font-semibold block">Quick Select Registered Sales Employee:</span>
-              <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto no-scrollbar">
-                {employees.filter(e => e.role !== 'admin').map((emp) => (
-                  <button
-                    key={emp.id}
-                    type="button"
-                    onClick={() => {
-                      setMobileNumber(emp.mobileNumber);
-                      const mockOtp = '123456';
-                      setGeneratedOtp(mockOtp);
-                      setOtpCode(mockOtp);
-                      setStep('enter_otp');
-                      setSuccessMsg(`✓ Selected ${emp.name} (${emp.mobileNumber}). Click Verify.`);
-                    }}
-                    className="p-2 rounded-xl border border-slate-800 bg-slate-800/60 hover:bg-slate-800 flex items-center justify-between text-left text-xs transition text-slate-200"
-                  >
-                    <div>
-                      <div className="flex items-center gap-1.5 font-bold">
-                        <span>{emp.name}</span>
-                        <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-sky-500 text-slate-950">
-                          SALES
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-mono">{emp.mobileNumber} • {emp.designation}</span>
-                    </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         )}

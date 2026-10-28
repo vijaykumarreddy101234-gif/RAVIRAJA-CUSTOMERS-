@@ -44,20 +44,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg(null);
 
     const cleanMobile = mobileNumber.trim();
-    if (!cleanMobile || cleanMobile.length < 10) {
-      setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+    const digits = EmployeeService.normalizePhone(cleanMobile);
+    if (!digits || digits.length < 10) {
+      setErrorMsg('Please enter a valid 10-digit Indian mobile number (e.g. 9440042407).');
       return;
     }
 
     setIsLoading(true);
     setTimeout(() => {
-      const emp = employees.find(
-        (em) => em.mobileNumber.replace(/\s+/g, '') === cleanMobile.replace(/\s+/g, '')
-      );
+      const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
 
       if (!emp) {
         setIsLoading(false);
-        setErrorMsg('Mobile number not registered in SCRAFT employee database. Contact Admin.');
+        setErrorMsg(`Mobile number +91 ${digits} is not yet registered. Contact Admin.`);
         return;
       }
 
@@ -73,13 +72,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      const mockOtp = '123456';
+      const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
       setGeneratedOtp(mockOtp);
       setOtpCode(mockOtp);
       setStep('enter_otp');
       setIsLoading(false);
-      setSuccessMsg(`✓ SMS OTP successfully sent to ${emp.mobileNumber}. Code: ${mockOtp}`);
-    }, 300);
+      setSuccessMsg(`✓ SMS OTP successfully sent to ${emp.name} (+91 ${digits}). Code: ${mockOtp}`);
+    }, 250);
   };
 
   const handleVerifyAndLogin = (e: React.FormEvent) => {

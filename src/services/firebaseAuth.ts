@@ -260,15 +260,16 @@ export const confirmPhoneOtp = async (
 export const loginWithMobileNumber = (mobile: string, otp: string): SignInResult => {
   const cleanMobile = mobile.trim();
   const employees = EmployeeService.getEmployees();
-  const emp = employees.find(
-    (e) => e.mobileNumber.replace(/\s+/g, '') === cleanMobile.replace(/\s+/g, '')
-  );
+  const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
 
   if (!emp) {
-    return { success: false, errorMessage: 'Mobile number not registered.' };
+    return { success: false, errorMessage: 'Mobile number not registered in SCRAFT employee directory.' };
   }
-  if (emp.status === 'Resigned' || emp.status === 'Inactive') {
-    return { success: false, errorMessage: 'Account inactive or resigned.' };
+  if (emp.status === 'Resigned') {
+    return { success: false, errorMessage: 'This employee account has been marked as Resigned. Access denied.' };
+  }
+  if (emp.status === 'Inactive') {
+    return { success: false, errorMessage: 'This employee account is currently Inactive. Contact Admin.' };
   }
 
   const appUser: AppUser = {

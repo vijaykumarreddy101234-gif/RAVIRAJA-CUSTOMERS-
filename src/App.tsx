@@ -81,7 +81,12 @@ export default function App() {
       FirestoreSyncService.syncInitialVisits(initialLocal);
     }
 
-    // 4. Auth state listener
+    // 4. Real-time Firestore listener for sales employees
+    const unsubscribeEmployees = EmployeeService.subscribeToEmployees((emps) => {
+      setEmployees(emps);
+    });
+
+    // 5. Auth state listener
     const unsubscribeAuth = initAuth(
       (currentUser) => {
         setUser(currentUser);
@@ -93,6 +98,7 @@ export default function App() {
 
     return () => {
       if (unsubscribeVisits) unsubscribeVisits();
+      if (unsubscribeEmployees) unsubscribeEmployees();
       if (unsubscribeAuth) unsubscribeAuth();
     };
   }, []);
