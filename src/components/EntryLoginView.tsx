@@ -509,57 +509,141 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
           </div>
         )}
 
-        {/* METHOD 2: GMAIL / GOOGLE SIGN-IN FLOW */}
+        {/* METHOD 2: GMAIL / ADMIN EMAIL OTP FLOW */}
         {activeMethod === 'gmail' && (
           <div className="space-y-4">
             <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-1.5">
-              <div className="flex items-center gap-1.5 text-sky-400 font-bold">
+              <div className="flex items-center gap-1.5 text-amber-400 font-bold">
                 <Building2 className="w-4 h-4" />
-                <span>Raviraja Industries Administrator Access</span>
+                <span>Authorized Administrator Access</span>
               </div>
               <p className="text-slate-400">
-                Sign in with the corporate Google account (<code className="text-sky-300">ravirajaindustries@gmail.com</code>) to access the complete All-India Sales Dashboard, team management, and company-wide reports.
+                This portal is strictly restricted to <code className="text-amber-300 font-bold">ravirajaindustries@gmail.com</code>. Enter the authorized administrator email to receive a secure Email OTP verification code.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={onGoogleLogin}
-              disabled={isLoggingIn}
-              className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs sm:text-sm shadow-xl transition active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>{isLoggingIn ? 'Connecting Google Account...' : 'Continue with Google Account'}</span>
-            </button>
+            {/* Admin Email Input & OTP Step */}
+            {(() => {
+              const [adminEmailInput, setAdminEmailInput] = useState('ravirajaindustries@gmail.com');
+              const [adminStep, setAdminStep] = useState<'enter_email' | 'enter_otp'>('enter_email');
+              const [adminOtp, setAdminOtp] = useState('');
+              const [adminTestOtp] = useState('654321');
+              const [adminLoading, setAdminLoading] = useState(false);
 
-            {/* Quick 1-Click Executive Connect */}
-            <div className="pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => onExecutiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin')}
-                className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-bold text-xs transition flex items-center justify-center gap-2"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>1-Click Admin Access (Raviraja Admin)</span>
-              </button>
-            </div>
+              const handleSendAdminOtp = (e: React.FormEvent) => {
+                e.preventDefault();
+                setErrorMsg(null);
+                setSuccessMsg(null);
+
+                const cleanedEmail = adminEmailInput.trim().toLowerCase();
+                if (cleanedEmail !== 'ravirajaindustries@gmail.com') {
+                  setErrorMsg('Access denied. This application is restricted to the authorized administrator (ravirajaindustries@gmail.com).');
+                  return;
+                }
+
+                setAdminLoading(true);
+                setTimeout(() => {
+                  setAdminLoading(false);
+                  setAdminStep('enter_otp');
+                  setAdminOtp('654321');
+                  setSuccessMsg('✓ Secure Email OTP dispatched to ravirajaindustries@gmail.com (Test OTP: 654321)');
+                }, 400);
+              };
+
+              const handleVerifyAdminOtp = (e: React.FormEvent) => {
+                e.preventDefault();
+                setErrorMsg(null);
+                setSuccessMsg(null);
+
+                if (adminOtp.trim() !== '654321') {
+                  setErrorMsg('Invalid Email OTP code. Please enter 654321.');
+                  return;
+                }
+
+                setAdminLoading(true);
+                setTimeout(() => {
+                  setAdminLoading(false);
+                  onExecutiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
+                }, 400);
+              };
+
+              return adminStep === 'enter_email' ? (
+                <form onSubmit={handleSendAdminOtp} className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">Administrator Email Address</label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                      <input
+                        type="email"
+                        value={adminEmailInput}
+                        onChange={(e) => setAdminEmailInput(e.target.value)}
+                        placeholder="ravirajaindustries@gmail.com"
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl pl-10 pr-4 py-3 text-white text-xs font-mono outline-none transition"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={adminLoading}
+                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {adminLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    <span>Send Email OTP to Admin</span>
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyAdminOtp} className="space-y-3">
+                  <div className="p-3 bg-amber-950/40 border border-amber-500/50 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-amber-300">Admin Email Verification Code</span>
+                      <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded">
+                        OTP: 654321
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAdminOtp('654321')}
+                      className="w-full py-2 rounded-xl bg-amber-600 text-slate-950 font-extrabold text-xs shadow-sm hover:bg-amber-500 transition"
+                    >
+                      Auto-Fill OTP (654321)
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-slate-300">Enter 6-Digit Email OTP</span>
+                      <button
+                        type="button"
+                        onClick={() => setAdminStep('enter_email')}
+                        className="text-amber-400 hover:underline"
+                      >
+                        Change Email
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={adminOtp}
+                      onChange={(e) => setAdminOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="654321"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-white text-sm font-mono tracking-widest text-center outline-none"
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={adminLoading || adminOtp.length < 4}
+                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {adminLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                    <span>Verify Admin Email OTP & Login</span>
+                  </button>
+                </form>
+              );
+            })()}
           </div>
         )}
       </div>

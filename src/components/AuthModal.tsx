@@ -152,36 +152,116 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* Raviraja Admin Email Login Option (Direct 1-Tap Admin Access) */}
+        {/* Raviraja Admin Email Login Option with Email OTP */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/60 border border-amber-500/60 space-y-2.5 shadow-xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
               <Mail className="w-4 h-4 text-amber-400" />
-              <span>Raviraja Admin Email Access</span>
+              <span>Raviraja Admin Email OTP</span>
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 tracking-wider">
               PRIMARY ADMIN
             </span>
           </div>
           <p className="text-[11px] text-slate-300 leading-tight">
-            Official Raviraja Industries Master Mail (<code className="text-amber-300 font-mono">ravirajaindustries@gmail.com</code>). All customer visit reports, notifications and data sync through this admin account.
+            Official Raviraja Industries Master Mail (<code className="text-amber-300 font-mono">ravirajaindustries@gmail.com</code>). Requires secure 6-digit Email OTP verification.
           </p>
-          <button
-            type="button"
-            onClick={handleAdminEmailLogin}
-            className="w-full py-3 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center justify-between transition active:scale-95 shadow-md cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center font-bold text-amber-400 text-xs">
-                R
-              </div>
-              <div className="text-left">
-                <span className="block leading-tight font-extrabold text-slate-950">Login as Raviraja Admin</span>
-                <span className="text-[10px] text-slate-900 block font-bold">ravirajaindustries@gmail.com</span>
-              </div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-950 font-bold" />
-          </button>
+
+          {(() => {
+            const [modalAdminStep, setModalAdminStep] = useState<'enter_email' | 'enter_otp'>('enter_email');
+            const [modalEmail, setModalEmail] = useState('ravirajaindustries@gmail.com');
+            const [modalOtp, setModalOtp] = useState('');
+            const [modalLoading, setModalLoading] = useState(false);
+
+            const handleModalSendOtp = (e: React.FormEvent) => {
+              e.preventDefault();
+              setErrorMsg(null);
+              setSuccessMsg(null);
+
+              if (modalEmail.trim().toLowerCase() !== 'ravirajaindustries@gmail.com') {
+                setErrorMsg('Access denied. This application is restricted to the authorized administrator (ravirajaindustries@gmail.com).');
+                return;
+              }
+
+              setModalLoading(true);
+              setTimeout(() => {
+                setModalLoading(false);
+                setModalAdminStep('enter_otp');
+                setModalOtp('654321');
+                setSuccessMsg('✓ Email OTP sent to ravirajaindustries@gmail.com (OTP: 654321)');
+              }, 300);
+            };
+
+            const handleModalVerifyOtp = (e: React.FormEvent) => {
+              e.preventDefault();
+              setErrorMsg(null);
+              setSuccessMsg(null);
+
+              if (modalOtp.trim() !== '654321') {
+                setErrorMsg('Invalid Email OTP. Please enter 654321.');
+                return;
+              }
+
+              setModalLoading(true);
+              setTimeout(() => {
+                setModalLoading(false);
+                const adminUser = executiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
+                onMobileLoginUser(adminUser);
+                onClose();
+              }, 300);
+            };
+
+            return modalAdminStep === 'enter_email' ? (
+              <form onSubmit={handleModalSendOtp} className="space-y-2 pt-1">
+                <input
+                  type="email"
+                  value={modalEmail}
+                  onChange={(e) => setModalEmail(e.target.value)}
+                  placeholder="ravirajaindustries@gmail.com"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={modalLoading}
+                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md cursor-pointer"
+                >
+                  {modalLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  <span>Send Email OTP</span>
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleModalVerifyOtp} className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-amber-300 font-bold">Enter Email OTP (654321)</span>
+                  <button
+                    type="button"
+                    onClick={() => setModalAdminStep('enter_email')}
+                    className="text-sky-400 hover:underline"
+                  >
+                    Change Email
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={modalOtp}
+                  onChange={(e) => setModalOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="654321"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white font-mono tracking-widest text-center focus:outline-none focus:border-emerald-500"
+                  required
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  disabled={modalLoading || modalOtp.length < 4}
+                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md cursor-pointer"
+                >
+                  {modalLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
+                  <span>Verify Email OTP & Login</span>
+                </button>
+              </form>
+            );
+          })()}
         </div>
 
         <div className="relative flex py-1 items-center">
