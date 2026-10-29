@@ -52,6 +52,12 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
   const [isSimulated, setIsSimulated] = useState(false);
   const [testOtpCode, setTestOtpCode] = useState('123456');
 
+  // Admin email OTP flow states (top-level)
+  const [adminEmailInput, setAdminEmailInput] = useState('ravirajaindustries@gmail.com');
+  const [adminStep, setAdminStep] = useState<'enter_email' | 'enter_otp'>('enter_email');
+  const [adminOtp, setAdminOtp] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+
   const employees = EmployeeService.getEmployees();
   const recaptchaVerifierRef = useRef<any>(null);
 
@@ -217,23 +223,42 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
     handleSendOtp(undefined, phone);
   };
 
-  const handleInstantNagarjunaLogin = () => {
-    const nagarjunaEmp = EmployeeService.findEmployeeByPhone('9440042407', employees);
-    if (!nagarjunaEmp) return;
-    const appUser: AppUser = {
-      uid: nagarjunaEmp.id,
-      email: nagarjunaEmp.email || 'nagarjuna@scraft.in',
-      displayName: nagarjunaEmp.name,
-      photoURL: null,
-      role: nagarjunaEmp.role,
-      mobileNumber: nagarjunaEmp.mobileNumber,
-      employeeCode: nagarjunaEmp.employeeCode,
-      designation: nagarjunaEmp.designation,
-      assignedState: nagarjunaEmp.assignedState,
-      status: nagarjunaEmp.status,
-      isFirebaseUser: true,
-    };
-    onMobileLoginUser(appUser);
+  // Admin Email OTP handlers
+  const handleSendAdminOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanedEmail = adminEmailInput.trim().toLowerCase();
+    if (cleanedEmail !== 'ravirajaindustries@gmail.com') {
+      setErrorMsg('Access denied. This application is restricted to the authorized administrator (ravirajaindustries@gmail.com).');
+      return;
+    }
+
+    setAdminLoading(true);
+    setTimeout(() => {
+      setAdminLoading(false);
+      setAdminStep('enter_otp');
+      setAdminOtp('654321');
+      setSuccessMsg('✓ Secure Email OTP dispatched to ravirajaindustries@gmail.com (Test OTP: 654321)');
+    }, 300);
+  };
+
+  const handleVerifyAdminOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (adminOtp.trim() !== '654321') {
+      setErrorMsg('Invalid Email OTP code. Please enter 654321.');
+      return;
+    }
+
+    setAdminLoading(true);
+    setTimeout(() => {
+      setAdminLoading(false);
+      onExecutiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
+    }, 300);
   };
 
   return (
@@ -290,12 +315,12 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
             }}
             className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
               activeMethod === 'gmail'
-                ? 'bg-sky-600 text-white shadow-md'
+                ? 'bg-amber-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <Mail className="w-3.5 h-3.5" />
-            <span>Admin Gmail</span>
+            <span>Admin Gmail OTP</span>
           </button>
         </div>
 
@@ -509,7 +534,7 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
           </div>
         )}
 
-        {/* METHOD 2: GMAIL / ADMIN EMAIL OTP FLOW */}
+        {/* METHOD 2: ADMIN GMAIL EMAIL OTP FLOW */}
         {activeMethod === 'gmail' && (
           <div className="space-y-4">
             <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-1.5">
@@ -522,128 +547,82 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
               </p>
             </div>
 
-            {/* Admin Email Input & OTP Step */}
-            {(() => {
-              const [adminEmailInput, setAdminEmailInput] = useState('ravirajaindustries@gmail.com');
-              const [adminStep, setAdminStep] = useState<'enter_email' | 'enter_otp'>('enter_email');
-              const [adminOtp, setAdminOtp] = useState('');
-              const [adminTestOtp] = useState('654321');
-              const [adminLoading, setAdminLoading] = useState(false);
-
-              const handleSendAdminOtp = (e: React.FormEvent) => {
-                e.preventDefault();
-                setErrorMsg(null);
-                setSuccessMsg(null);
-
-                const cleanedEmail = adminEmailInput.trim().toLowerCase();
-                if (cleanedEmail !== 'ravirajaindustries@gmail.com') {
-                  setErrorMsg('Access denied. This application is restricted to the authorized administrator (ravirajaindustries@gmail.com).');
-                  return;
-                }
-
-                setAdminLoading(true);
-                setTimeout(() => {
-                  setAdminLoading(false);
-                  setAdminStep('enter_otp');
-                  setAdminOtp('654321');
-                  setSuccessMsg('✓ Secure Email OTP dispatched to ravirajaindustries@gmail.com (Test OTP: 654321)');
-                }, 400);
-              };
-
-              const handleVerifyAdminOtp = (e: React.FormEvent) => {
-                e.preventDefault();
-                setErrorMsg(null);
-                setSuccessMsg(null);
-
-                if (adminOtp.trim() !== '654321') {
-                  setErrorMsg('Invalid Email OTP code. Please enter 654321.');
-                  return;
-                }
-
-                setAdminLoading(true);
-                setTimeout(() => {
-                  setAdminLoading(false);
-                  onExecutiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
-                }, 400);
-              };
-
-              return adminStep === 'enter_email' ? (
-                <form onSubmit={handleSendAdminOtp} className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300">Administrator Email Address</label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                      <input
-                        type="email"
-                        value={adminEmailInput}
-                        onChange={(e) => setAdminEmailInput(e.target.value)}
-                        placeholder="ravirajaindustries@gmail.com"
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl pl-10 pr-4 py-3 text-white text-xs font-mono outline-none transition"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={adminLoading}
-                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {adminLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    <span>Send Email OTP to Admin</span>
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyAdminOtp} className="space-y-3">
-                  <div className="p-3 bg-amber-950/40 border border-amber-500/50 rounded-2xl space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-amber-300">Admin Email Verification Code</span>
-                      <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded">
-                        OTP: 654321
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setAdminOtp('654321')}
-                      className="w-full py-2 rounded-xl bg-amber-600 text-slate-950 font-extrabold text-xs shadow-sm hover:bg-amber-500 transition"
-                    >
-                      Auto-Fill OTP (654321)
-                    </button>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-bold text-slate-300">Enter 6-Digit Email OTP</span>
-                      <button
-                        type="button"
-                        onClick={() => setAdminStep('enter_email')}
-                        className="text-amber-400 hover:underline"
-                      >
-                        Change Email
-                      </button>
-                    </div>
+            {adminStep === 'enter_email' ? (
+              <form onSubmit={handleSendAdminOtp} className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-300">Administrator Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                     <input
-                      type="text"
-                      value={adminOtp}
-                      onChange={(e) => setAdminOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="654321"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-white text-sm font-mono tracking-widest text-center outline-none"
+                      type="email"
+                      value={adminEmailInput}
+                      onChange={(e) => setAdminEmailInput(e.target.value)}
+                      placeholder="ravirajaindustries@gmail.com"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl pl-10 pr-4 py-3 text-white text-xs font-mono outline-none transition"
                       required
-                      autoFocus
                     />
                   </div>
+                </div>
 
+                <button
+                  type="submit"
+                  disabled={adminLoading}
+                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {adminLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  <span>Send Email OTP to Admin</span>
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyAdminOtp} className="space-y-3">
+                <div className="p-3 bg-amber-950/40 border border-amber-500/50 rounded-2xl space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-amber-300">Admin Email Verification Code</span>
+                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded">
+                      OTP: 654321
+                    </span>
+                  </div>
                   <button
-                    type="submit"
-                    disabled={adminLoading || adminOtp.length < 4}
-                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                    type="button"
+                    onClick={() => setAdminOtp('654321')}
+                    className="w-full py-2 rounded-xl bg-amber-600 text-slate-950 font-extrabold text-xs shadow-sm hover:bg-amber-500 transition cursor-pointer"
                   >
-                    {adminLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-                    <span>Verify Admin Email OTP & Login</span>
+                    Auto-Fill OTP (654321)
                   </button>
-                </form>
-              );
-            })()}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-slate-300">Enter 6-Digit Email OTP</span>
+                    <button
+                      type="button"
+                      onClick={() => setAdminStep('enter_email')}
+                      className="text-amber-400 hover:underline"
+                    >
+                      Change Email
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={adminOtp}
+                    onChange={(e) => setAdminOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="654321"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-white text-sm font-mono tracking-widest text-center outline-none"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={adminLoading || adminOtp.length < 4}
+                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {adminLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                  <span>Verify Admin Email OTP & Login</span>
+                </button>
+              </form>
+            )}
           </div>
         )}
       </div>
