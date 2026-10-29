@@ -25,6 +25,7 @@ import {
   Camera,
   Image as ImageIcon,
   X,
+  Share2,
 } from 'lucide-react';
 import { CustomerVisit, VisitPhoto } from '../types/customerVisit';
 import { INDIAN_STATES } from '../data/indiaLocations';
@@ -52,6 +53,57 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
   const [zoomedPhoto, setZoomedPhoto] = useState<
     (VisitPhoto & { customerName?: string; companyName?: string }) | null
   >(null);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+
+  const handleShareVisit = async (v: CustomerVisit) => {
+    const brand =
+      v.brand ||
+      (v.interestedBrand.includes('SMART')
+        ? 'SMART'
+        : v.interestedBrand.includes('SCRAFT') || v.interestedBrand.includes('S CRAFT')
+        ? 'S CRAFT'
+        : 'OTHERS');
+
+    const text = [
+      `🏢 *SCRAFT uPVC Visit Report*`,
+      `--------------------------------`,
+      `*Company / Firm:* ${v.companyName || v.customerName}`,
+      `*Customer / Owner:* ${v.customerName} (${v.contactDesignation || 'Owner'})`,
+      `*Mobile:* ${v.mobileNumber}`,
+      `*Location:* ${v.city}, ${v.state} ${v.gpsLocationLink ? `(GPS: ${v.gpsLocationLink})` : ''}`,
+      `*Customer Type:* ${v.customerType}`,
+      `*Brand Interested:* ${brand} - ${v.interestedSeries || v.interestedBrand}`,
+      `*Monthly Volume:* ${v.quantityPerMonth}`,
+      `*Competitors Used:* ${v.currentBrands?.join(', ') || v.currentBrand || 'None'}`,
+      `*Lead Stage:* ${v.leadStatus} | *PI Status:* ${v.piSent}`,
+      `*Follow-up Date:* ${v.followUpDate || 'None'}`,
+      `*Conversation / Remarks:* "${v.visitRemarks || 'N/A'}"`,
+      `*Dealt By Executive:* ${v.salesExecutiveName} (${v.customerVisitDate})`,
+      `--------------------------------`,
+      `_Generated via SCRAFT uPVC Sales Tracker_`,
+    ].join('\n');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `SCRAFT Visit Report: ${v.companyName || v.customerName}`,
+          text: text,
+        });
+        return;
+      } catch (err) {
+        // User cancelled or share failed, fallback to clipboard
+      }
+    }
+
+    // Fallback to clipboard and WhatsApp web
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareToast(`✓ Visit details for "${v.companyName || v.customerName}" copied to clipboard! Ready to paste on WhatsApp.`);
+      setTimeout(() => setShareToast(null), 4000);
+    } catch (e) {
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  };
 
   // Extract all unique sales executives dynamically
   const uniqueExecutives = useMemo(() => {
@@ -143,6 +195,19 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
 
   return (
     <div className="space-y-4 pb-12">
+      {shareToast && (
+        <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl text-emerald-200 text-xs font-bold flex items-center justify-between shadow-xl animate-fadeIn">
+          <span>{shareToast}</span>
+          <button
+            type="button"
+            onClick={() => setShareToast(null)}
+            className="text-emerald-300 hover:text-white cursor-pointer ml-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Title & Stats */}
       <div className="flex items-center justify-between">
         <div>
@@ -501,7 +566,7 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                     </div>
                   </div>
 
-                  {/* Quick Connect: Phone & WhatsApp */}
+                  {/* Quick Connect: Phone, WhatsApp & Share */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <a
                       href={`tel:${visit.mobileNumber}`}
@@ -519,6 +584,14 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                     >
                       <MessageCircle className="w-4 h-4" />
                     </a>
+                    <button
+                      type="button"
+                      onClick={() => handleShareVisit(visit)}
+                      className="p-2 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/30 text-indigo-400 transition cursor-pointer"
+                      title="Share visit report and details"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
