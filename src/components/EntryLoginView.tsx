@@ -23,6 +23,7 @@ import {
   ConfirmationResult,
 } from '../services/firebaseAuth';
 import { EmployeeService } from '../services/employeeService';
+import { AdminAlertService } from '../services/adminAlerts';
 
 interface EntryLoginViewProps {
   onGoogleLogin: () => Promise<void>;
@@ -102,6 +103,7 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
 
     const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
     if (!emp) {
+      AdminAlertService.recordUnauthorizedAttempt({ mobile: cleanMobile, actionType: 'UNAUTHORIZED_LOGIN_ATTEMPT' });
       setErrorMsg(`Mobile number +91 ${digits} is not registered in SCRAFT employee directory. Please contact Admin Raviraja to register.`);
       return;
     }
@@ -231,6 +233,7 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
 
     const cleanedEmail = adminEmailInput.trim().toLowerCase();
     if (cleanedEmail !== 'ravirajaindustries@gmail.com') {
+      AdminAlertService.recordUnauthorizedAttempt({ email: adminEmailInput, actionType: 'BLOCKED_ACCESS' });
       setErrorMsg('Access denied. This application is restricted to the authorized administrator (ravirajaindustries@gmail.com).');
       return;
     }
@@ -488,49 +491,6 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
                 </button>
               </form>
             )}
-
-            {/* Quick 1-Tap Login for Nagarjuna & Admin */}
-            <div className="pt-2 border-t border-slate-800/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Registered Sales Personnel:
-                </span>
-                <span className="text-[10px] text-sky-400">Tap to Login Directly</span>
-              </div>
-
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {employees.map((emp) => (
-                  <button
-                    key={emp.id}
-                    type="button"
-                    onClick={() => handleQuickSelect(emp.mobileNumber)}
-                    className="w-full text-left p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800/70 hover:border-slate-700 flex items-center justify-between transition group"
-                  >
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-white group-hover:text-sky-300">
-                          {emp.name}
-                        </span>
-                        <span
-                          className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
-                            emp.role === 'admin'
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                          }`}
-                        >
-                          {emp.role.toUpperCase()}
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-mono">
-                          {emp.assignedState}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-mono">{emp.mobileNumber}</span>
-                    </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-sky-400 transition transform group-hover:translate-x-0.5" />
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 

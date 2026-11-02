@@ -26,6 +26,10 @@ import {
   Image as ImageIcon,
   X,
   Share2,
+  Printer,
+  Mail,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { CustomerVisit, VisitPhoto } from '../types/customerVisit';
 import { INDIAN_STATES } from '../data/indiaLocations';
@@ -54,55 +58,55 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
     (VisitPhoto & { customerName?: string; companyName?: string }) | null
   >(null);
   const [shareToast, setShareToast] = useState<string | null>(null);
+  const [sharingVisit, setSharingVisit] = useState<CustomerVisit | null>(null);
+  const [copiedShareModal, setCopiedShareModal] = useState(false);
 
-  const handleShareVisit = async (v: CustomerVisit) => {
+  const formatVisitReportText = (v: CustomerVisit): string => {
     const brand =
       v.brand ||
-      (v.interestedBrand.includes('SMART')
+      (v.interestedBrand?.includes('SMART')
         ? 'SMART'
-        : v.interestedBrand.includes('SCRAFT') || v.interestedBrand.includes('S CRAFT')
+        : v.interestedBrand?.includes('SCRAFT') || v.interestedBrand?.includes('S CRAFT')
         ? 'S CRAFT'
         : 'OTHERS');
 
-    const text = [
-      `🏢 *SCRAFT uPVC Visit Report*`,
-      `--------------------------------`,
-      `*Company / Firm:* ${v.companyName || v.customerName}`,
-      `*Customer / Owner:* ${v.customerName} (${v.contactDesignation || 'Owner'})`,
-      `*Mobile:* ${v.mobileNumber}`,
-      `*Location:* ${v.city}, ${v.state} ${v.gpsLocationLink ? `(GPS: ${v.gpsLocationLink})` : ''}`,
-      `*Customer Type:* ${v.customerType}`,
-      `*Brand Interested:* ${brand} - ${v.interestedSeries || v.interestedBrand}`,
-      `*Monthly Volume:* ${v.quantityPerMonth}`,
-      `*Competitors Used:* ${v.currentBrands?.join(', ') || v.currentBrand || 'None'}`,
-      `*Lead Stage:* ${v.leadStatus} | *PI Status:* ${v.piSent}`,
-      `*Follow-up Date:* ${v.followUpDate || 'None'}`,
-      `*Conversation / Remarks:* "${v.visitRemarks || 'N/A'}"`,
-      `*Dealt By Executive:* ${v.salesExecutiveName} (${v.customerVisitDate})`,
-      `--------------------------------`,
-      `_Generated via SCRAFT uPVC Sales Tracker_`,
-    ].join('\n');
+    const hasPhotos = (v.photos && v.photos.length > 0) || v.visitingCardPhoto;
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `SCRAFT Visit Report: ${v.companyName || v.customerName}`,
-          text: text,
-        });
-        return;
-      } catch (err) {
-        // User cancelled or share failed, fallback to clipboard
-      }
-    }
+    return [
+      `🏢 *RAVIRAJA INDUSTRIES - SCRAFT uPVC VISIT REPORT*`,
+      `═══════════════════════════════════════════════`,
+      `📋 *COMPANY & CUSTOMER DETAILS*`,
+      `• Company / Firm: ${v.companyName || v.customerName}`,
+      `• Customer / Owner: ${v.customerName} (${v.contactDesignation || 'Owner / Proprietor'})`,
+      `• Mobile: ${v.mobileNumber}${v.whatsappNumber ? ` | WhatsApp: ${v.whatsappNumber}` : ''}`,
+      `• Customer Type: ${v.customerType}`,
+      v.gstNumber ? `• GSTIN: ${v.gstNumber}` : '',
+      v.customerAddress ? `• Address: ${v.customerAddress}` : '',
+      `• Location: ${v.city}, ${v.state}${v.pinCode ? ` - ${v.pinCode}` : ''}`,
+      v.gpsLocationLink ? `• GPS Map: ${v.gpsLocationLink}` : '',
+      ``,
+      `📦 *PROFILE REQUIREMENTS & TONNAGE*`,
+      `• Target Brand: ${brand}`,
+      v.interestedSeries ? `• Interested Series: ${v.interestedSeries}` : `• Product: ${v.interestedBrand}`,
+      `• Monthly Volume: ${v.quantityPerMonth || '5 MT / Month'}`,
+      `• Currently Used Brands: ${v.currentBrands?.join(', ') || v.currentBrand || 'None'}`,
+      ``,
+      `🔥 *LEAD STATUS & FOLLOW-UP*`,
+      `• Lead Stage: ${v.leadStatus}`,
+      `• PI Status: ${v.piSent}`,
+      `• Follow-up Date: ${v.followUpDate || 'None'}`,
+      `• Executive: ${v.salesExecutiveName} (${v.customerVisitDate} ${v.customerVisitTime || ''})`,
+      ``,
+      `💬 *DISCUSSION REMARKS / OPINION*`,
+      `"${v.visitRemarks || 'N/A'}"`,
+      hasPhotos ? `\n📸 *ATTACHED VISIT MEDIA:* ${v.photos?.length || 0} Photos ${v.visitingCardPhoto ? '+ Visiting Card Stored' : ''}` : '',
+      `═══════════════════════════════════════════════`,
+      `_Official Record - Raviraja Industries CRM (ravirajaindustries@gmail.com)_`,
+    ].filter(Boolean).join('\n');
+  };
 
-    // Fallback to clipboard and WhatsApp web
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareToast(`✓ Visit details for "${v.companyName || v.customerName}" copied to clipboard! Ready to paste on WhatsApp.`);
-      setTimeout(() => setShareToast(null), 4000);
-    } catch (e) {
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
-    }
+  const handleShareVisit = (v: CustomerVisit) => {
+    setSharingVisit(v);
   };
 
   // Extract all unique sales executives dynamically
@@ -587,10 +591,11 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                     <button
                       type="button"
                       onClick={() => handleShareVisit(visit)}
-                      className="p-2 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/30 text-indigo-400 transition cursor-pointer"
-                      title="Share visit report and details"
+                      className="px-2.5 py-2 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-300 font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-sm"
+                      title="Share customer visit form with images"
                     >
-                      <Share2 className="w-4 h-4" />
+                      <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                      <span className="hidden sm:inline">Share Form</span>
                     </button>
                   </div>
                 </div>
@@ -712,6 +717,326 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
           })
         )}
       </div>
+
+      {/* CUSTOMER VISIT DATA SHARE FORM MODAL (WITH IMAGES) */}
+      {sharingVisit &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9998] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSharingVisit(null);
+            }}
+          >
+            <div className="relative max-w-2xl w-full max-h-[92vh] flex flex-col bg-slate-900 border border-indigo-500/50 rounded-3xl overflow-hidden shadow-2xl">
+              {/* Top Modal Header */}
+              <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
+                    <Share2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span>Customer Visit Data Form</span>
+                      <span className="text-[10px] font-mono font-bold text-indigo-300 bg-indigo-950/90 border border-indigo-800/80 px-2 py-0.5 rounded-md">
+                        Official Form View
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Complete visit report with photos ready to share or print
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSharingVisit(null)}
+                  className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Form Body - Formatted Like an Official CRM Form */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+                {/* Official Header Banner */}
+                <div className="p-3.5 bg-gradient-to-r from-sky-950/70 via-slate-950 to-indigo-950/70 border border-sky-800/60 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-inner">
+                  <div>
+                    <span className="text-[10px] font-mono tracking-widest text-sky-400 font-extrabold block">
+                      RAVIRAJA INDUSTRIES • CRM
+                    </span>
+                    <h4 className="text-base font-black text-white">
+                      {sharingVisit.companyName || sharingVisit.customerName}
+                    </h4>
+                    <span className="text-xs text-slate-300 font-medium">
+                      {sharingVisit.customerType} • Visit #{sharingVisit.id.slice(-4)}
+                    </span>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <span className="text-[11px] font-mono text-cyan-300 block">
+                      {sharingVisit.customerVisitDate} {sharingVisit.customerVisitTime || ''}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Dealt by: <strong className="text-white">{sharingVisit.salesExecutiveName}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* FORM GRID BOXES */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* BOX 1: Owner & Contact Details */}
+                  <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-1.5">
+                    <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">
+                      Customer & Owner Details
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Owner Name:</span>
+                        <strong className="text-white">{sharingVisit.customerName}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Designation:</span>
+                        <span className="text-slate-200">{sharingVisit.contactDesignation || 'Owner / Proprietor'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Mobile Number:</span>
+                        <a href={`tel:${sharingVisit.mobileNumber}`} className="text-sky-400 font-mono font-bold hover:underline">
+                          {sharingVisit.mobileNumber}
+                        </a>
+                      </div>
+                      {sharingVisit.whatsappNumber && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">WhatsApp:</span>
+                          <span className="text-emerald-400 font-mono">{sharingVisit.whatsappNumber}</span>
+                        </div>
+                      )}
+                      {sharingVisit.gstNumber && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">GSTIN:</span>
+                          <span className="text-amber-300 font-mono font-bold">{sharingVisit.gstNumber}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* BOX 2: Location & GPS */}
+                  <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-1.5">
+                    <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">
+                      Location & Geo Coordinates
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">City / Industrial Area:</span>
+                        <strong className="text-white">{sharingVisit.city}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">State / Region:</span>
+                        <span className="text-slate-200">{sharingVisit.state}</span>
+                      </div>
+                      {sharingVisit.customerAddress && (
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Address:</span>
+                          <span className="text-slate-200 text-[11px] block">{sharingVisit.customerAddress}</span>
+                        </div>
+                      )}
+                      {sharingVisit.gpsLocationLink && (
+                        <div className="pt-1">
+                          <a
+                            href={sharingVisit.gpsLocationLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-rose-400 hover:text-rose-300 font-bold"
+                          >
+                            <Navigation className="w-3 h-3" />
+                            <span>Open GPS Location on Google Maps</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* BOX 3: Business & Brand Target */}
+                  <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-1.5">
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                      Profile Requirements & Volume
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Target Brand:</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                          {sharingVisit.brand || sharingVisit.interestedBrand}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Monthly Volume:</span>
+                        <strong className="text-white font-mono">{sharingVisit.quantityPerMonth || '5 MT / Month'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block mb-0.5">Currently Used Brands:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {(sharingVisit.currentBrands || (sharingVisit.currentBrand ? [sharingVisit.currentBrand] : ['None'])).map((b, idx) => (
+                            <span key={idx} className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-800">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* BOX 4: Lead Status & Deal */}
+                  <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-1.5">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                      Lead Stage & Follow-Up
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Lead Status:</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          {sharingVisit.leadStatus}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">PI Sent:</span>
+                        <span className="text-white font-bold">{sharingVisit.piSent}</span>
+                      </div>
+                      {sharingVisit.followUpDate && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Follow-up Due:</span>
+                          <span className="text-amber-400 font-mono font-bold">{sharingVisit.followUpDate}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* BOX 5: Discussion Remarks & Opinion */}
+                <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-1">
+                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
+                    Discussion Remarks & Customer Opinion
+                  </span>
+                  <p className="text-slate-200 italic bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                    "{sharingVisit.visitRemarks || 'No additional remarks provided'}"
+                  </p>
+                </div>
+
+                {/* BOX 6: Attached Photos & Visiting Card (WITH ACTUAL IMAGES) */}
+                <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Attached Photos & Visiting Card</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Total: {(sharingVisit.photos?.length || 0) + (sharingVisit.visitingCardPhoto ? 1 : 0)} items
+                    </span>
+                  </div>
+
+                  {(!sharingVisit.photos || sharingVisit.photos.length === 0) && !sharingVisit.visitingCardPhoto ? (
+                    <div className="p-4 text-center text-xs text-slate-500 bg-slate-900 rounded-xl border border-slate-800">
+                      No photos or visiting cards uploaded for this visit entry.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {sharingVisit.visitingCardPhoto && (
+                        <div
+                          className="relative rounded-xl overflow-hidden border border-sky-500/60 bg-black cursor-pointer group"
+                          onClick={() => setZoomedPhoto({ id: 'card-photo', dataUrl: sharingVisit.visitingCardPhoto!, caption: 'Visiting Card', customerName: sharingVisit.customerName })}
+                        >
+                          <img
+                            src={sharingVisit.visitingCardPhoto}
+                            alt="Visiting Card"
+                            className="w-full h-24 object-cover group-hover:scale-105 transition"
+                          />
+                          <span className="absolute bottom-0 inset-x-0 bg-sky-950/90 text-sky-200 text-[9px] text-center font-bold py-0.5">
+                            Visiting Card
+                          </span>
+                        </div>
+                      )}
+
+                      {sharingVisit.photos?.map((photo, pIdx) => (
+                        <div
+                          key={photo.id || pIdx}
+                          className="relative rounded-xl overflow-hidden border border-slate-700 bg-black cursor-pointer group"
+                          onClick={() => setZoomedPhoto({ ...photo, customerName: sharingVisit.customerName, companyName: sharingVisit.companyName })}
+                        >
+                          <img
+                            src={photo.dataUrl}
+                            alt={photo.caption || `Visit photo ${pIdx + 1}`}
+                            className="w-full h-24 object-cover group-hover:scale-105 transition"
+                          />
+                          <span className="absolute bottom-0 inset-x-0 bg-black/80 text-white text-[9px] text-center font-semibold py-0.5 truncate px-1">
+                            {photo.caption || `Photo ${pIdx + 1}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom Sharing Action Buttons Bar */}
+              <div className="p-3 sm:p-4 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Share to WhatsApp */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = formatVisitReportText(sharingVisit);
+                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition active:scale-95 cursor-pointer"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>Share to WhatsApp</span>
+                  </button>
+
+                  {/* Email Admin */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = formatVisitReportText(sharingVisit);
+                      const subject = `SCRAFT Visit Report: ${sharingVisit.companyName || sharingVisit.customerName} - ${sharingVisit.city}`;
+                      window.location.href = `mailto:ravirajaindustries@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Email Admin (ravirajaindustries@gmail.com)</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Copy Form Details */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const text = formatVisitReportText(sharingVisit);
+                      await navigator.clipboard.writeText(text);
+                      setCopiedShareModal(true);
+                      setTimeout(() => setCopiedShareModal(false), 3000);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    {copiedShareModal ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedShareModal ? '✓ Copied Form' : 'Copy Form'}</span>
+                  </button>
+
+                  {/* Print / Save PDF */}
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Print Form</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* FULLSCREEN PHOTO LIGHTBOX MODAL (PORTAL) */}
       {zoomedPhoto &&

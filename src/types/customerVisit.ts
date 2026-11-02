@@ -92,6 +92,50 @@ export interface CustomerVisit {
   profileColor?: string;
   executiveEmail?: string;
   userId?: string;
+
+  // Customer Visit Management Module Fields
+  customerId?: string; // Unique Customer / Enterprise ID e.g. CUST-8219
+  visitId?: string; // Unique Visit ID e.g. VST-2026-0042
+  visitingCardPhoto?: string; // Base64 data URL for uploaded visiting card
+  whatsappNumber?: string;
+  emailAddress?: string;
+  pinCode?: string;
+  branchLocations?: Array<{
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+  }>;
+
+  // Box 4: Conversion Card details
+  conversionCard?: {
+    leadStatus: LeadStatus;
+    productsDiscussed: string;
+    targetBrand: string;
+    expectedOrderDate?: string;
+    probability?: string;
+    dealValue?: string;
+    discussionNotes?: string;
+  };
+
+  // Box 5: Customer Opinion Card details
+  opinionCard?: {
+    customerFeedback: string;
+    priceOpinion?: string;
+    qualityOpinion?: string;
+    deliveryOpinion?: string;
+    competitorRemarks?: string;
+  };
+
+  // Box 8: Next Follow-Up details
+  followUpRequired?: 'Yes' | 'No';
+  followUpTime?: string;
+  followUpPurpose?: string;
+  followUpDiscussion?: string;
+  assignedSalesperson?: string;
+  followUpStatus?: 'Pending' | 'Completed' | 'Rescheduled' | 'Cancelled';
+
   createdAt: number;
   updatedAt?: number;
 }

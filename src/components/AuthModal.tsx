@@ -350,39 +350,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
           </form>
         )}
-
-        {/* Quick Test Logins */}
-        <div className="space-y-2 pt-1 border-t border-slate-800">
-          <span className="text-[11px] text-slate-400 font-semibold block">Pre-registered Sales Executives:</span>
-          <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto no-scrollbar">
-            {employees.filter(e => e.role !== 'admin').map((emp) => (
-              <button
-                key={emp.id}
-                type="button"
-                onClick={() => {
-                  setMobileNumber(emp.mobileNumber);
-                  const mockOtp = '123456';
-                  setGeneratedOtp(mockOtp);
-                  setOtpCode(mockOtp);
-                  setStep('enter_otp');
-                  setSuccessMsg(`✓ OTP generated for ${emp.name}. Click Verify.`);
-                }}
-                className="p-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 flex items-center justify-between text-left text-xs transition text-slate-200"
-              >
-                <div>
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <span>{emp.name}</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-sky-500 text-slate-950">
-                      SALES
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono">{emp.mobileNumber}</span>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

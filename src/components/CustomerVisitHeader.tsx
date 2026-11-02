@@ -19,7 +19,9 @@ import {
   Image as ImageIcon,
   Sparkles,
   Link as LinkIcon,
+  ShieldAlert,
 } from 'lucide-react';
+import { AdminAlertService, SecurityAlert } from '../services/adminAlerts';
 
 interface CustomerVisitHeaderProps {
   user: AppUser | null;
@@ -130,6 +132,19 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
   isSyncing = false,
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
+  const [showAlertsDropdown, setShowAlertsDropdown] = useState(false);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      const unsubscribe = AdminAlertService.subscribeToAlerts((alerts) => {
+        setSecurityAlerts(alerts);
+      });
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    }
+  }, [user]);
 
   // Custom Company Branding & Logo State (persisted locally)
   const [appTitle, setAppTitle] = useState(() => {
@@ -369,6 +384,71 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
             <FileText className="w-3.5 h-3.5 text-rose-400" />
             <span className="hidden sm:inline">PDF</span>
           </button>
+
+          {/* Admin Security Alerts Bell / Badge */}
+          {user?.role === 'admin' && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowAlertsDropdown(!showAlertsDropdown)}
+                className="relative p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 transition cursor-pointer"
+                title="Security Alerts: Unauthorized Login Attempts"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                {securityAlerts.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                    {securityAlerts.length}
+                  </span>
+                )}
+              </button>
+
+              {showAlertsDropdown && (
+                <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-amber-500/50 rounded-2xl shadow-2xl p-3 z-50 text-xs space-y-2">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="font-extrabold text-amber-300 flex items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-amber-400" />
+                      <span>Security & Unauthorized Alerts</span>
+                    </span>
+                    <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full font-bold">
+                      {securityAlerts.length} Blocked
+                    </span>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto space-y-1.5 no-scrollbar">
+                    {securityAlerts.length === 0 ? (
+                      <p className="text-center text-slate-500 py-4 text-xs">
+                        No unauthorized login or OTP attempts recorded.
+                      </p>
+                    ) : (
+                      securityAlerts.map((alert) => (
+                        <div key={alert.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-rose-400 text-[11px]">
+                              {alert.actionType.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-mono">
+                              {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                          </div>
+                          {alert.attemptedEmail && (
+                            <p className="text-[11px] text-slate-300 font-mono">
+                              Email: <b className="text-amber-300">{alert.attemptedEmail}</b>
+                            </p>
+                          )}
+                          {alert.attemptedMobile && (
+                            <p className="text-[11px] text-slate-300 font-mono">
+                              Mobile: <b className="text-amber-300">{alert.attemptedMobile}</b>
+                            </p>
+                          )}
+                          <p className="text-[9px] text-slate-500 truncate">{alert.userAgent}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Google / Gmail Connected Profile */}
           {user ? (

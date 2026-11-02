@@ -8,6 +8,7 @@ import confetti from 'canvas-confetti';
 import { CustomerVisitHeader } from './components/CustomerVisitHeader';
 import { CustomerBottomNav, CustomerTabType } from './components/CustomerBottomNav';
 import { CustomerVisitForm } from './components/CustomerVisitForm';
+import { CustomerVisitManagementView } from './components/CustomerVisitManagementView';
 import { CustomerVisitList } from './components/CustomerVisitList';
 import { CustomerVisitDetailModal } from './components/CustomerVisitDetailModal';
 import { FabricatorLeadsView } from './components/FabricatorLeadsView';
@@ -434,10 +435,13 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-2xl w-full mx-auto px-3 sm:px-4 pt-4 pb-24">
         {currentTab === 'entry' && (
-          <CustomerVisitForm
+          <CustomerVisitManagementView
             onSubmitVisit={handleSubmitVisit}
+            onUpdateVisit={handleUpdateVisit}
+            onSelectVisit={(v) => setSelectedVisit(v)}
             defaultExecutiveName={defaultExecutive}
             user={user}
+            visits={authorizedVisits}
           />
         )}
 

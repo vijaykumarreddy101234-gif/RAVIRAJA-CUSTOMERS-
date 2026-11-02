@@ -34,7 +34,7 @@ export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
   isAdmin,
 }) => {
   const baseTabs = [
-    { id: 'entry' as CustomerTabType, label: 'New Visit', icon: ClipboardEdit },
+    { id: 'entry' as CustomerTabType, label: 'Visit Mgmt', icon: ClipboardEdit },
     { id: 'list' as CustomerTabType, label: 'Visits', icon: Users, badge: visitCount },
     { id: 'calendar' as CustomerTabType, label: 'Calendar', icon: Calendar },
     { id: 'leads' as CustomerTabType, label: 'uPVC Leads', icon: Flame, hotBadge: hotCount },

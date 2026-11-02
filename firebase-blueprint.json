@@ -113,6 +113,30 @@
           "type": "array",
           "description": "Attached workshop, product sample, and fabricator photos"
         },
+        "customerId": {
+          "type": "string",
+          "description": "Unique customer / company ID"
+        },
+        "visitId": {
+          "type": "string",
+          "description": "Unique visit ID"
+        },
+        "visitingCardPhoto": {
+          "type": "string",
+          "description": "Uploaded visiting card image"
+        },
+        "pinCode": {
+          "type": "string",
+          "description": "Postal PIN Code"
+        },
+        "whatsappNumber": {
+          "type": "string",
+          "description": "Customer WhatsApp contact number"
+        },
+        "emailAddress": {
+          "type": "string",
+          "description": "Customer email contact"
+        },
         "createdAt": {
           "type": "number",
           "description": "Timestamp of creation"
