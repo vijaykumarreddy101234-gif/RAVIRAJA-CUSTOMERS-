@@ -188,52 +188,85 @@ export const sendPhoneOtp = async (
     console.warn('Firebase Phone Auth attempt result:', error);
     const errCode = error?.code || 'auth/sms-failed';
     
-    // Provide diagnostic information for production setup
     let customMsg = error?.message || 'Could not send SMS OTP.';
     if (errCode === 'auth/invalid-phone-number') {
       customMsg = 'Invalid Indian mobile number format. Must be a 10-digit number (+91).';
     } else if (errCode === 'auth/quota-exceeded') {
-      customMsg = 'Firebase daily SMS quota exceeded. Use instant verification code 123456.';
+      customMsg = 'Firebase daily SMS quota exceeded. Please contact system admin or use Gmail login.';
     } else if (errCode === 'auth/unauthorized-domain') {
-      customMsg = 'Authorized domain pending in Firebase Console. Use instant verification code 123456.';
+      customMsg = 'Authorized domain pending in Firebase Console. Please use Gmail login for now.';
     } else if (errCode === 'auth/operation-not-allowed') {
-      customMsg = 'Phone authentication pending in Firebase Console. Use instant verification code 123456.';
+      customMsg = 'Phone authentication pending in Firebase Console. Please use Gmail login.';
     }
 
-    const testCode = '123456';
     return {
-      success: true,
-      isSimulated: true,
-      testOtp: testCode,
-      confirmationResult: {
-        verificationId: 'scraft-auth-vid-' + Date.now(),
-        confirm: async (code: string) => {
-          if (code && code.trim().length >= 4) {
-            const appUser: AppUser = {
-              uid: emp.id,
-              email: emp.email || 'ravirajaindustries@gmail.com',
-              displayName: emp.name,
-              photoURL: null,
-              role: emp.role,
-              mobileNumber: emp.mobileNumber,
-              employeeCode: emp.employeeCode,
-              designation: emp.designation,
-              assignedState: emp.assignedState,
-              status: emp.status,
-              isFirebaseUser: true,
-            };
-            saveExecutiveUser(appUser);
-            return { user: { uid: emp.id } as any };
-          }
-          throw new Error('Invalid OTP code. Enter 123456.');
-        },
-      } as unknown as ConfirmationResult,
+      success: false,
+      errorCode: errCode,
       errorMessage: customMsg,
     };
   }
 };
 
-// Confirm OTP code
+// Send Email OTP via Backend
+export const sendEmailOtp = async (email: string): Promise<SignInResult> => {
+  try {
+    const response = await fetch('/api/send-email-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, errorMessage: data.error || 'Failed to send Email OTP' };
+    }
+    
+    return { success: true, testOtp: data.previewUrl }; // previewUrl for dev/ethereal testing
+  } catch (error: any) {
+    return { success: false, errorMessage: 'Network error while sending Email OTP' };
+  }
+};
+
+// Verify Email OTP via Backend
+export const verifyEmailOtp = async (email: string, otp: string): Promise<SignInResult> => {
+  try {
+    const response = await fetch('/api/verify-email-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, errorMessage: data.error || 'Invalid OTP code' };
+    }
+    
+    // If verified, generate an executive session
+    const employees = EmployeeService.getEmployees();
+    const matched = employees.find((e) => e.email?.toLowerCase() === email.toLowerCase());
+    
+    const appUser: AppUser = {
+      uid: matched?.id || 'email-user-' + Date.now(),
+      email: email,
+      displayName: matched?.name || 'Raviraja Admin',
+      photoURL: null,
+      role: matched?.role || 'admin',
+      mobileNumber: matched?.mobileNumber || '+91 98250 00000',
+      employeeCode: matched?.employeeCode || 'SC-ADM-001',
+      designation: matched?.designation || 'Administrator',
+      assignedState: matched?.assignedState || 'All-India',
+      status: 'Active',
+      isFirebaseUser: true,
+    };
+    
+    saveExecutiveUser(appUser);
+    return { success: true, user: appUser };
+  } catch (error: any) {
+    return { success: false, errorMessage: 'Network error during verification' };
+  }
+};
+
+// Confirm OTP code (Phone Auth)
 export const confirmPhoneOtp = async (
   confirmationResult: ConfirmationResult,
   otpCode: string,

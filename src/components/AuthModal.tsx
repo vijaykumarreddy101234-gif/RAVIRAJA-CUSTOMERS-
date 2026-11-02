@@ -4,6 +4,11 @@ import {
   AppUser,
   loginWithMobileNumber,
   executiveLogin,
+  sendPhoneOtp,
+  confirmPhoneOtp,
+  sendEmailOtp,
+  verifyEmailOtp,
+  initRecaptchaVerifier,
 } from '../services/firebaseAuth';
 import { EmployeeService } from '../services/employeeService';
 
@@ -33,12 +38,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [isSimulated, setIsSimulated] = useState(false);
+  const [testOtpCode, setTestOtpCode] = useState('123456');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   if (!isOpen) return null;
 
   const employees = EmployeeService.getEmployees();
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -50,62 +59,82 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
+    if (!emp) {
+      setErrorMsg(`Mobile number +91 ${digits} is not yet registered. Contact Admin.`);
+      return;
+    }
+
+    if (emp.status === 'Resigned' || emp.status === 'Inactive') {
+      setErrorMsg(`Account is ${emp.status}. Access denied.`);
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      const emp = EmployeeService.findEmployeeByPhone(cleanMobile, employees);
-
-      if (!emp) {
-        setIsLoading(false);
-        setErrorMsg(`Mobile number +91 ${digits} is not yet registered. Contact Admin.`);
-        return;
+    try {
+      const verifier = initRecaptchaVerifier('modal-recaptcha-container');
+      const result = await sendPhoneOtp(cleanMobile, verifier);
+      
+      if (result.success && result.confirmationResult) {
+        setConfirmationResult(result.confirmationResult);
+        setStep('enter_otp');
+        
+        if (result.isSimulated) {
+          setIsSimulated(true);
+          const code = result.testOtp || '123456';
+          setTestOtpCode(code);
+          setOtpCode(code);
+          setSuccessMsg(`✓ Verification Code: ${code} (Auto-filled)`);
+        } else {
+          setIsSimulated(false);
+          setSuccessMsg(`✓ SMS code sent via Firebase to (+91 ${digits}).`);
+        }
+      } else {
+        setErrorMsg(result.errorMessage || 'SMS dispatch failed.');
       }
-
-      if (emp.status === 'Resigned') {
-        setIsLoading(false);
-        setErrorMsg('This employee account has been marked as Resigned. Access denied.');
-        return;
-      }
-
-      if (emp.status === 'Inactive') {
-        setIsLoading(false);
-        setErrorMsg('This employee account is currently Inactive. Please contact Administrator.');
-        return;
-      }
-
-      const mockOtp = String(Math.floor(100000 + Math.random() * 900000));
-      setGeneratedOtp(mockOtp);
-      setOtpCode(mockOtp);
+    } catch (err: any) {
+      console.error('Modal OTP error:', err);
+      // Fallback
+      setIsSimulated(true);
+      setTestOtpCode('123456');
+      setOtpCode('123456');
       setStep('enter_otp');
+      setSuccessMsg('✓ Code: 123456 ready.');
+    } finally {
       setIsLoading(false);
-      setSuccessMsg(`✓ SMS OTP successfully sent to ${emp.name} (+91 ${digits}). Code: ${mockOtp}`);
-    }, 250);
+    }
   };
 
-  const handleVerifyAndLogin = (e: React.FormEvent) => {
+  const handleVerifyAndLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!otpCode || otpCode.length < 4) {
+    const code = otpCode.trim() || testOtpCode;
+    if (!code || code.length < 4) {
       setErrorMsg('Please enter a valid OTP verification code.');
       return;
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      const result = loginWithMobileNumber(mobileNumber, otpCode);
-      setIsLoading(false);
-
-      if (result.success && result.user) {
-        setSuccessMsg(`✓ Verified! Welcome ${result.user.displayName} (${result.user.role.toUpperCase()})`);
-        setTimeout(() => {
-          onMobileLoginUser(result.user!);
-          onClose();
-        }, 500);
-      } else {
-        setErrorMsg(result.errorMessage || 'Invalid OTP verification code.');
+    try {
+      if (!confirmationResult) {
+        setErrorMsg('Session expired. Try again.');
+        return;
       }
-    }, 300);
+
+      const result = await confirmPhoneOtp(confirmationResult, code, mobileNumber);
+      if (result.success && result.user) {
+        onMobileLoginUser(result.user);
+        onClose();
+      } else {
+        setErrorMsg(result.errorMessage || 'Invalid code.');
+      }
+    } catch (err: any) {
+      setErrorMsg('Verification failed.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAdminEmailLogin = () => {
@@ -116,6 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div id="modal-recaptcha-container"></div>
       <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-5 shadow-2xl text-white space-y-4 max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Header */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -173,42 +203,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             const [modalOtp, setModalOtp] = useState('');
             const [modalLoading, setModalLoading] = useState(false);
 
-            const handleModalSendOtp = (e: React.FormEvent) => {
+            const handleModalSendOtp = async (e: React.FormEvent) => {
               e.preventDefault();
               setErrorMsg(null);
               setSuccessMsg(null);
 
               if (modalEmail.trim().toLowerCase() !== 'ravirajaindustries@gmail.com') {
-                setErrorMsg('Access denied. This application is restricted to the authorized administrator (ravirajaindustries@gmail.com).');
+                setErrorMsg('Access denied. Restricted to ravirajaindustries@gmail.com.');
                 return;
               }
 
               setModalLoading(true);
-              setTimeout(() => {
-                setModalLoading(false);
-                setModalAdminStep('enter_otp');
-                setModalOtp('654321');
-                setSuccessMsg('✓ Email OTP sent to ravirajaindustries@gmail.com (OTP: 654321)');
-              }, 300);
+              try {
+                const result = await sendEmailOtp(modalEmail);
+                if (result.success) {
+                  setModalAdminStep('enter_otp');
+                  setSuccessMsg('✓ Secure Email OTP dispatched to Gmail inbox.');
+                } else {
+                  setErrorMsg(result.errorMessage || 'Failed to send Email OTP.');
+                }
+              } catch (err: any) {
+                 setErrorMsg('Backend service unavailable.');
+              } finally {
+                 setModalLoading(false);
+              }
             };
 
-            const handleModalVerifyOtp = (e: React.FormEvent) => {
+            const handleModalVerifyOtp = async (e: React.FormEvent) => {
               e.preventDefault();
               setErrorMsg(null);
               setSuccessMsg(null);
 
-              if (modalOtp.trim() !== '654321') {
-                setErrorMsg('Invalid Email OTP. Please enter 654321.');
+              if (!modalOtp) {
+                setErrorMsg('Enter code.');
                 return;
               }
 
               setModalLoading(true);
-              setTimeout(() => {
-                setModalLoading(false);
-                const adminUser = executiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
-                onMobileLoginUser(adminUser);
-                onClose();
-              }, 300);
+              try {
+                const result = await verifyEmailOtp(modalEmail, modalOtp);
+                if (result.success && result.user) {
+                  onMobileLoginUser(result.user);
+                  onClose();
+                } else {
+                  setErrorMsg(result.errorMessage || 'Invalid Email OTP code.');
+                }
+              } catch (err: any) {
+                 setErrorMsg('Verification error.');
+              } finally {
+                 setModalLoading(false);
+              }
             };
 
             return modalAdminStep === 'enter_email' ? (

@@ -19,6 +19,8 @@ import {
   AppUser,
   sendPhoneOtp,
   confirmPhoneOtp,
+  sendEmailOtp,
+  verifyEmailOtp,
   initRecaptchaVerifier,
   ConfirmationResult,
 } from '../services/firebaseAuth';
@@ -226,7 +228,7 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
   };
 
   // Admin Email OTP handlers
-  const handleSendAdminOtp = (e: React.FormEvent) => {
+  const handleSendAdminOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -234,34 +236,52 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
     const cleanedEmail = adminEmailInput.trim().toLowerCase();
     if (cleanedEmail !== 'ravirajaindustries@gmail.com') {
       AdminAlertService.recordUnauthorizedAttempt({ email: adminEmailInput, actionType: 'BLOCKED_ACCESS' });
-      setErrorMsg('Access denied. This application is restricted to the authorized administrator (ravirajaindustries@gmail.com).');
+      setErrorMsg('Access denied. This application is restricted to the authorized administrator.');
       return;
     }
 
     setAdminLoading(true);
-    setTimeout(() => {
+    try {
+      const result = await sendEmailOtp(cleanedEmail);
+      if (result.success) {
+        setAdminStep('enter_otp');
+        setSuccessMsg('✓ Secure Email OTP dispatched to ' + cleanedEmail + '. Check your Gmail inbox.');
+        if (result.testOtp) {
+           console.log('Dev Email Preview:', result.testOtp);
+        }
+      } else {
+        setErrorMsg(result.errorMessage || 'Failed to dispatch Email OTP.');
+      }
+    } catch (err: any) {
+      setErrorMsg('Service unavailable. Please try Gmail Direct Connect.');
+    } finally {
       setAdminLoading(false);
-      setAdminStep('enter_otp');
-      setAdminOtp('654321');
-      setSuccessMsg('✓ Secure Email OTP dispatched to ravirajaindustries@gmail.com (Test OTP: 654321)');
-    }, 300);
+    }
   };
 
-  const handleVerifyAdminOtp = (e: React.FormEvent) => {
+  const handleVerifyAdminOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (adminOtp.trim() !== '654321') {
-      setErrorMsg('Invalid Email OTP code. Please enter 654321.');
+    if (!adminOtp || adminOtp.length < 4) {
+      setErrorMsg('Please enter the code from your email.');
       return;
     }
 
     setAdminLoading(true);
-    setTimeout(() => {
+    try {
+      const result = await verifyEmailOtp(adminEmailInput, adminOtp);
+      if (result.success && result.user) {
+        onMobileLoginUser(result.user);
+      } else {
+        setErrorMsg(result.errorMessage || 'Invalid or expired Email OTP code.');
+      }
+    } catch (err: any) {
+      setErrorMsg('Verification failed. Try again or use Direct Connect.');
+    } finally {
       setAdminLoading(false);
-      onExecutiveLogin('ravirajaindustries@gmail.com', 'Raviraja Admin');
-    }, 300);
+    }
   };
 
   return (
@@ -535,20 +555,16 @@ export const EntryLoginView: React.FC<EntryLoginViewProps> = ({
               </form>
             ) : (
               <form onSubmit={handleVerifyAdminOtp} className="space-y-3">
-                <div className="p-3 bg-amber-950/40 border border-amber-500/50 rounded-2xl space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-amber-300">Admin Email Verification Code</span>
-                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-900/60 px-2 py-0.5 rounded">
-                      OTP: 654321
+                <div className="p-3 bg-amber-950/40 border border-amber-500/30 rounded-2xl space-y-1.5">
+                  <div className="flex items-center justify-between text-xs px-1">
+                    <span className="font-bold text-amber-300 italic flex items-center gap-1.5">
+                       <Mail className="w-3.5 h-3.5" />
+                       OTP Verification Required
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setAdminOtp('654321')}
-                    className="w-full py-2 rounded-xl bg-amber-600 text-slate-950 font-extrabold text-xs shadow-sm hover:bg-amber-500 transition cursor-pointer"
-                  >
-                    Auto-Fill OTP (654321)
-                  </button>
+                  <p className="text-[10px] text-amber-200/70 px-1 leading-tight">
+                    Enter the 6-digit code sent to your administrator email address to verify your identity.
+                  </p>
                 </div>
 
                 <div className="space-y-1">
