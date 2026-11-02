@@ -41,6 +41,7 @@ import {
 } from '../types/customerVisit';
 import { AppUser } from '../services/firebaseAuth';
 import { EmployeeService } from '../services/employeeService';
+import { VoiceDictationButton } from './VoiceDictationButton';
 import {
   INDIAN_STATES,
   CUSTOMER_TYPES,
@@ -530,49 +531,28 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
         </div>
       )}
 
-      {/* HEADER BANNER: Exactly as in CSV */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative">
-          <div>
-            <span className="text-[11px] font-mono tracking-widest text-sky-400 font-extrabold uppercase block">
-              RAVIRAJA INDUSTRIES | CUSTOMER VISIT MANAGEMENT
-            </span>
-            <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2 mt-0.5">
-              <span>SINGLE-PAGE VISIT ENTRY FORM</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Complete the cards and save the visit in your CRM • ID: <span className="font-mono text-sky-300 font-bold">{visitId}</span>
-            </p>
-          </div>
-
-          {/* Live timestamp & Executive */}
-          <div className="flex items-center gap-2 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 text-xs font-mono self-start sm:self-auto">
-            <Clock className="w-4 h-4 text-sky-400 shrink-0" />
-            <div>
-              <span className="text-white font-bold block">{currentDateTime.dateStr} • {currentDateTime.timeStr}</span>
-              <span className="text-[10px] text-slate-400">Executive: {assignedSalesperson}</span>
-            </div>
-          </div>
+      {/* TOP HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+        <div>
+          <span className="text-[11px] font-mono tracking-widest text-sky-400 font-extrabold uppercase block">
+            RAVIRAJA CRM
+          </span>
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Customer Visit Management
+          </h1>
         </div>
-
-        {/* Existing Company Auto-Fill Shortcut */}
-        {existingCompanies.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-sky-400" />
-              <span>Auto-fill from previous records:</span>
-            </span>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {existingCompanies.length > 0 && (
             <select
               onChange={(e) => {
                 const found = existingCompanies.find((c) => c.companyName === e.target.value);
                 if (found) handleSelectExistingCompany(found);
               }}
               defaultValue=""
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:border-sky-500 outline-none"
+              className="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-1.5 focus:border-sky-500 outline-none"
             >
               <option value="" disabled>
-                Select previous company to auto-fill...
+                Auto-fill company...
               </option>
               {existingCompanies.map((c) => (
                 <option key={c.id} value={c.companyName}>
@@ -580,8 +560,11 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
                 </option>
               ))}
             </select>
+          )}
+          <div className="text-xs text-slate-400 font-mono bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
+            Visit ID: <span className="font-mono text-sky-300 font-bold">{visitId}</span>
           </div>
-        )}
+        </div>
       </div>
 
       {/* MAIN SINGLE-PAGE VISIT FORM */}
@@ -701,12 +684,20 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
             </div>
 
             <div className="sm:col-span-2">
-              <label className="font-bold text-slate-300 block mb-1">Company Address</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-bold text-slate-300 block">Company Address</label>
+                <VoiceDictationButton
+                  onTranscript={(text) =>
+                    setCompanyAddress((prev) => (prev ? `${prev} ${text}` : text))
+                  }
+                  title="Dictate company address via microphone"
+                />
+              </div>
               <input
                 type="text"
                 value={companyAddress}
                 onChange={(e) => setCompanyAddress(e.target.value)}
-                placeholder="Enter address"
+                placeholder="Enter address or tap microphone to dictate"
                 className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-white outline-none"
               />
             </div>
@@ -881,16 +872,24 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
                   Record what he said about order conversion & deal discussion
                 </p>
               </div>
-              <span className="text-[10px] font-mono text-amber-300 bg-amber-950/80 border border-amber-800/50 px-2 py-0.5 rounded-lg">
-                Card 3
-              </span>
+              <div className="flex items-center gap-1.5">
+                <VoiceDictationButton
+                  onTranscript={(text) =>
+                    setConversionText((prev) => (prev ? `${prev} ${text}` : text))
+                  }
+                  title="Dictate order conversion remarks via microphone"
+                />
+                <span className="text-[10px] font-mono text-amber-300 bg-amber-950/80 border border-amber-800/50 px-2 py-0.5 rounded-lg">
+                  Card 3
+                </span>
+              </div>
             </div>
 
             <textarea
               rows={3}
               value={conversionText}
               onChange={(e) => setConversionText(e.target.value)}
-              placeholder="Write what customer said regarding order conversion, deal terms, readiness to buy..."
+              placeholder="Write or dictate what customer said regarding order conversion, deal terms, readiness to buy..."
               className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl p-3 text-white outline-none resize-none text-xs placeholder-slate-500 transition font-normal"
             />
           </div>
@@ -907,16 +906,24 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
                   Record what he said regarding opinion, feedback & requirements
                 </p>
               </div>
-              <span className="text-[10px] font-mono text-sky-300 bg-sky-950/80 border border-sky-800/50 px-2 py-0.5 rounded-lg">
-                Card 4
-              </span>
+              <div className="flex items-center gap-1.5">
+                <VoiceDictationButton
+                  onTranscript={(text) =>
+                    setOpinionText((prev) => (prev ? `${prev} ${text}` : text))
+                  }
+                  title="Dictate customer opinion remarks via microphone"
+                />
+                <span className="text-[10px] font-mono text-sky-300 bg-sky-950/80 border border-sky-800/50 px-2 py-0.5 rounded-lg">
+                  Card 4
+                </span>
+              </div>
             </div>
 
             <textarea
               rows={3}
               value={opinionText}
               onChange={(e) => setOpinionText(e.target.value)}
-              placeholder="Write what customer said regarding product opinion, quality, competitor comparison, remarks..."
+              placeholder="Write or dictate what customer said regarding product opinion, quality, competitor comparison, remarks..."
               className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-2xl p-3 text-white outline-none resize-none text-xs placeholder-slate-500 transition font-normal"
             />
           </div>
@@ -1323,12 +1330,20 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
           {/* Row 2: Follow-up Discussion, Follow-up Status */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div className="sm:col-span-2">
-              <label className="font-bold text-slate-300 block mb-1">Follow-up Discussion</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-bold text-slate-300 block">Follow-up Discussion</label>
+                <VoiceDictationButton
+                  onTranscript={(text) =>
+                    setFollowUpDiscussion((prev) => (prev ? `${prev} ${text}` : text))
+                  }
+                  title="Dictate follow-up discussion via microphone"
+                />
+              </div>
               <input
                 type="text"
                 value={followUpDiscussion}
                 onChange={(e) => setFollowUpDiscussion(e.target.value)}
-                placeholder="Enter purpose and discussion"
+                placeholder="Enter purpose and discussion or dictate via microphone"
                 className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none"
               />
             </div>
@@ -1347,6 +1362,110 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
               </select>
             </div>
           </div>
+        </div>
+
+        {/* EXECUTIVE & VISIT SUMMARY CARD (PLACED BELOW CARD 7 AS REQUESTED) */}
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl relative overflow-hidden space-y-3.5">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative">
+            <div>
+              <span className="text-[11px] font-mono tracking-widest text-sky-400 font-extrabold uppercase block">
+                RAVIRAJA INDUSTRIES | CUSTOMER VISIT MANAGEMENT
+              </span>
+              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2 mt-0.5">
+                <span>SINGLE-PAGE VISIT ENTRY FORM</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Complete the cards and save the visit in your CRM • ID:{' '}
+                <span className="font-mono text-sky-300 font-bold">{visitId}</span>
+              </p>
+            </div>
+
+            {/* Live timestamp & Executive */}
+            <div className="flex items-center gap-2 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 text-xs font-mono self-start sm:self-auto">
+              <Clock className="w-4 h-4 text-sky-400 shrink-0" />
+              <div>
+                <span className="text-white font-bold block">
+                  {currentDateTime.dateStr} • {currentDateTime.timeStr}
+                </span>
+                <span className="text-[10px] text-slate-400">Executive: {assignedSalesperson}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Assigned Salesperson (ADDED IN THIS CARD ONLY) */}
+          <div className="pt-2 border-t border-slate-800/80">
+            <label className="font-bold text-slate-200 block mb-1 text-xs">
+              Assigned Salesperson *
+            </label>
+            <select
+              value={assignedSalesperson}
+              onChange={(e) => setAssignedSalesperson(e.target.value)}
+              className="w-full bg-slate-950 border border-sky-500 focus:border-sky-400 rounded-xl px-3.5 py-2.5 text-white outline-none text-xs font-medium transition"
+            >
+              <option value="Raviraja Admin (ADMIN - All Territories)">
+                Raviraja Admin (ADMIN - All Territories)
+              </option>
+              <option value="nagarjuna (Executive - Telangana)">
+                nagarjuna (Executive - Telangana)
+              </option>
+              <option value="Rajeshbhai Patel (Senior Executive - Gujarat)">
+                Rajeshbhai Patel (Senior Executive - Gujarat)
+              </option>
+              <option value="Harika (Sales Rep - Hyderabad)">
+                Harika (Sales Rep - Hyderabad)
+              </option>
+              <option value="Suresh Kumar (Field Manager - South)">
+                Suresh Kumar (Field Manager - South)
+              </option>
+              <option value="Venu (Field Executive - LB Nagar)">
+                Venu (Field Executive - LB Nagar)
+              </option>
+              <option value="Ravi (Managing Director)">
+                Ravi (Managing Director)
+              </option>
+              {user?.displayName &&
+                ![
+                  'Raviraja Admin',
+                  'nagarjuna',
+                  'Rajeshbhai Patel',
+                  'Harika',
+                  'Suresh Kumar',
+                  'Venu',
+                  'Ravi',
+                ].some((n) => user.displayName?.includes(n)) && (
+                  <option value={user.displayName}>{user.displayName}</option>
+                )}
+            </select>
+          </div>
+
+          {/* Existing Company Auto-Fill Shortcut */}
+          {existingCompanies.length > 0 && (
+            <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-sky-400" />
+                <span>Auto-fill from previous records:</span>
+              </span>
+              <select
+                onChange={(e) => {
+                  const found = existingCompanies.find((c) => c.companyName === e.target.value);
+                  if (found) handleSelectExistingCompany(found);
+                }}
+                defaultValue=""
+                className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:border-sky-500 outline-none"
+              >
+                <option value="" disabled>
+                  Select previous company to auto-fill...
+                </option>
+                {existingCompanies.map((c) => (
+                  <option key={c.id} value={c.companyName}>
+                    {c.companyName} ({c.city})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* CARD 8 / BOTTOM BAR: SAVE VISIT */}

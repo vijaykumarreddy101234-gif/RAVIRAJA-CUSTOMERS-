@@ -222,180 +222,131 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
         </div>
       </div>
 
-      {/* Search Input */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search fabricator, company, GST, mobile, city, brand, GPS..."
-          className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-8 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 shadow-inner"
-        />
-        {searchTerm && (
-          <button
-            type="button"
-            onClick={() => setSearchTerm('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-
-      {/* Sales Executive Selector: Person-Wise or All */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 space-y-1.5 shadow-sm">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-extrabold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-            <User className="w-3.5 h-3.5 text-sky-400" />
-            <span>Sales Executive:</span>
-          </span>
-          {selectedExecutive !== 'All' ? (
-            <button
-              type="button"
-              onClick={() => setSelectedExecutive('All')}
-              className="text-[11px] text-sky-400 hover:text-sky-300 font-bold hover:underline"
-            >
-              Reset to All ({visits.length})
-            </button>
-          ) : (
-            <span className="text-[10px] text-slate-500 font-medium">Viewing All Executives</span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          <button
-            type="button"
-            onClick={() => setSelectedExecutive('All')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border active:scale-95 ${
-              selectedExecutive === 'All'
-                ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            All Option ({visits.length})
-          </button>
-          {uniqueExecutives.map((exec) => {
-            const count = visits.filter((v) => v.salesExecutiveName === exec).length;
-            const isSelected = selectedExecutive === exec;
-            return (
+      {/* Simple, Non-Clumsy Filter Toolbar matching clean Excel design */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-sm space-y-2.5">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search company, contact, city, mobile, brand..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 shadow-inner"
+            />
+            {searchTerm && (
               <button
-                key={exec}
                 type="button"
-                onClick={() => setSelectedExecutive(exec)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border flex items-center gap-1.5 active:scale-95 ${
-                  isSelected
-                    ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                }`}
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
               >
-                <span>{exec}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isSelected ? 'bg-sky-800 text-sky-100' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  {count}
-                </span>
+                ✕
               </button>
-            );
-          })}
-        </div>
-      </div>
+            )}
+          </div>
 
-      {/* Brand Filters (S CRAFT, SMART, OTHERS) */}
-      <div className="overflow-x-auto no-scrollbar -mx-4 px-4 flex items-center gap-1.5 pb-0.5">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-sky-400" /> Brand:
-        </span>
-        {['All', 'S CRAFT', 'SMART', 'OTHERS'].map((b) => (
-          <button
-            key={b}
-            type="button"
-            onClick={() => setSelectedBrand(b)}
-            className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold transition ${
-              selectedBrand === b
-                ? b === 'SMART'
-                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                  : b === 'OTHERS'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
-                  : 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60'
-            }`}
-          >
-            {b === 'All' ? 'All Brands' : b}
-          </button>
-        ))}
-      </div>
+          {/* Clean Dropdown Selects */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/* Sales Executive Selector */}
+            <select
+              value={selectedExecutive}
+              onChange={(e) => setSelectedExecutive(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+            >
+              <option value="All">All Executives ({visits.length})</option>
+              {uniqueExecutives.map((exec) => (
+                <option key={exec} value={exec}>
+                  {exec} ({visits.filter((v) => v.salesExecutiveName === exec).length})
+                </option>
+              ))}
+            </select>
 
-      {/* Customer Type Quick Filters (Fabricator, Distributor, etc.) */}
-      <div className="overflow-x-auto no-scrollbar -mx-4 px-4 flex gap-1.5 pb-0.5">
-        {['All', 'Fabricator', 'Distributor', 'Wholesaler', 'Direct OEM', 'Dealer'].map((ct) => (
-          <button
-            key={ct}
-            type="button"
-            onClick={() => setSelectedType(ct)}
-            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-              selectedType === ct
-                ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60'
-            }`}
-          >
-            {ct === 'Fabricator' ? '🔨 Fabricators' : ct}
-          </button>
-        ))}
-      </div>
+            {/* Stages / Status Selector */}
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+            >
+              <option value="All">All Stages</option>
+              <option value="Hot">🔥 Hot</option>
+              <option value="Warm">⚡ Warm</option>
+              <option value="Cold">❄️ Cold</option>
+              <option value="Won / Closed">🏆 Won / Closed</option>
+              <option value="Lost">Lost</option>
+            </select>
 
-      {/* Filter Row: Status Pills */}
-      <div className="overflow-x-auto no-scrollbar -mx-4 px-4 flex gap-1.5 pb-1">
-        {['All', 'Hot', 'Warm', 'Cold', 'Won / Closed', 'Lost'].map((st) => (
-          <button
-            key={st}
-            type="button"
-            onClick={() => setSelectedStatus(st)}
-            className={`whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${
-              selectedStatus === st
-                ? st === 'Hot'
-                  ? 'bg-rose-500 text-white shadow-md'
-                  : st === 'Won / Closed'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md'
-                  : 'bg-indigo-500 text-white shadow-md'
-                : 'bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-700/50'
-            }`}
-          >
-            {st === 'Hot' ? '🔥 Hot' : st === 'Warm' ? '⚡ Warm' : st === 'Won / Closed' ? '🏆 Won' : st}
-          </button>
-        ))}
-      </div>
+            {/* Brand Selector */}
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+            >
+              <option value="All">All Brands</option>
+              <option value="S CRAFT">S CRAFT</option>
+              <option value="SMART">SMART</option>
+              <option value="OTHERS">OTHERS</option>
+            </select>
 
-      {/* Filter Row 2: State & PI dropdowns */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div>
-          <select
-            value={selectedState}
-            onChange={(e) => setSelectedState(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-500"
-          >
-            <option value="All">All States (India)</option>
-            {INDIAN_STATES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
+            {/* Customer Type Selector */}
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+            >
+              <option value="All">All Types</option>
+              <option value="Fabricator">Fabricator</option>
+              <option value="Dealer">Dealer</option>
+              <option value="Distributor">Distributor</option>
+              <option value="Builder">Builder</option>
+              <option value="Wholesaler">Wholesaler</option>
+              <option value="Direct OEM">Direct OEM</option>
+            </select>
 
-        <div>
-          <select
-            value={selectedPISent}
-            onChange={(e) => setSelectedPISent(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-500"
-          >
-            <option value="All">PI Sent: All</option>
-            <option value="Yes">PI Sent: Yes</option>
-            <option value="No">PI Sent: No</option>
-            <option value="Under Preparation">PI: Under Prep</option>
-          </select>
+            {/* State Selector */}
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-2.5 py-2 focus:border-sky-500 outline-none cursor-pointer"
+            >
+              <option value="All">All States</option>
+              {INDIAN_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            {/* Showing Count */}
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap px-1">
+              Showing {filteredVisits.length} of {visits.length}
+            </span>
+
+            {/* Reset All Filters Button */}
+            {(selectedExecutive !== 'All' ||
+              selectedStatus !== 'All' ||
+              selectedBrand !== 'All' ||
+              selectedType !== 'All' ||
+              selectedState !== 'All' ||
+              selectedPISent !== 'All' ||
+              searchTerm) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedExecutive('All');
+                  setSelectedStatus('All');
+                  setSelectedBrand('All');
+                  setSelectedType('All');
+                  setSelectedState('All');
+                  setSelectedPISent('All');
+                  setSearchTerm('');
+                }}
+                className="text-xs text-sky-400 hover:text-sky-300 font-bold px-2.5 py-1.5 bg-sky-950/60 border border-sky-800/60 rounded-xl hover:underline cursor-pointer"
+              >
+                Reset All
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

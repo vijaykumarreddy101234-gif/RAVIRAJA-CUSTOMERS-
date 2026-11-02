@@ -36,6 +36,7 @@ import {
   VisitPhoto,
 } from '../types/customerVisit';
 import { AppUser } from '../services/firebaseAuth';
+import { VoiceDictationButton } from './VoiceDictationButton';
 import {
   INDIAN_STATES,
   POPULAR_DISTRICTS,
@@ -753,14 +754,22 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
 
           {/* Full Address */}
           <div className="text-xs">
-            <label className="text-slate-300 font-bold block mb-1">
-              Customer Workshop / Site Address
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-slate-300 font-bold block">
+                Customer Workshop / Site Address
+              </label>
+              <VoiceDictationButton
+                onTranscript={(text) =>
+                  setCustomerAddress((prev) => (prev ? `${prev} ${text}` : text))
+                }
+                title="Dictate address via microphone"
+              />
+            </div>
             <input
               type="text"
               value={customerAddress}
               onChange={(e) => setCustomerAddress(e.target.value)}
-              placeholder="e.g. Plot 55, Phase II, Kukatpally Industrial Area, Hyderabad"
+              placeholder="e.g. Plot 55, Phase II, Kukatpally Industrial Area, Hyderabad or dictate via microphone"
               className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-white placeholder:text-slate-600 outline-none transition font-medium"
             />
           </div>
@@ -927,19 +936,27 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
 
           {/* CONVERSATION FIELD (Renamed from Visit Discussion & Remarks) */}
           <div className="text-xs">
-            <label className="text-slate-300 font-bold block mb-1 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-slate-300 font-bold flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5 text-sky-400" />
                 <span>Conversation</span> <span className="text-rose-400">*</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-normal">Discussion details with fabricator</span>
-            </label>
+              </label>
+              <div className="flex items-center gap-1.5">
+                <VoiceDictationButton
+                  onTranscript={(text) =>
+                    setConversation((prev) => (prev ? `${prev} ${text}` : text))
+                  }
+                  title="Dictate conversation remarks via microphone"
+                />
+                <span className="text-[10px] text-slate-500 font-normal">Discussion details</span>
+              </div>
+            </div>
             <textarea
               rows={3}
               required
               value={conversation}
               onChange={(e) => setConversation(e.target.value)}
-              placeholder="e.g. Corner weld tests, profile chambers discussed, pricing expectations, sample corner requirements, projects in hand..."
+              placeholder="e.g. Corner weld tests, profile chambers discussed, pricing expectations, sample corner requirements, projects in hand (or dictate via microphone)..."
               className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-2xl p-3 text-white placeholder:text-slate-600 outline-none transition font-medium"
             />
           </div>
@@ -994,21 +1011,33 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
                           className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-2.5 py-1.5 text-xs text-indigo-300 font-bold outline-none"
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveOpinionCard(card.id)}
-                        className="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg hover:bg-rose-950/40 transition shrink-0 cursor-pointer"
-                        title="Delete Card"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <VoiceDictationButton
+                          onTranscript={(text) =>
+                            handleUpdateOpinionCard(
+                              card.id,
+                              'content',
+                              card.content ? `${card.content} ${text}` : text
+                            )
+                          }
+                          title="Dictate opinion remarks via microphone"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOpinionCard(card.id)}
+                          className="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg hover:bg-rose-950/40 transition shrink-0 cursor-pointer"
+                          title="Delete Card"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     <textarea
                       rows={2}
                       value={card.content}
                       onChange={(e) => handleUpdateOpinionCard(card.id, 'content', e.target.value)}
-                      placeholder="Enter customer opinion, market feedback, competitor terms, or specific request..."
+                      placeholder="Enter customer opinion, market feedback, competitor terms, or dictate via microphone..."
                       className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-2.5 py-2 text-xs text-white placeholder:text-slate-600 outline-none resize-none"
                     />
                   </div>

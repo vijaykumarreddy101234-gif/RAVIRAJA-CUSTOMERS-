@@ -88,63 +88,41 @@ export const FabricatorLeadsView: React.FC<FabricatorLeadsViewProps> = ({
         </p>
       </div>
 
-      {/* Sales Executive Selector: Person-Wise or All */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 space-y-1.5 shadow-sm">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-extrabold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-            <User className="w-3.5 h-3.5 text-sky-400" />
-            <span>Sales Executive:</span>
-          </span>
-          {selectedExecutive !== 'All' ? (
+      {/* Simple, Non-Clumsy Sales Executive Selector Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-sm">
+        <div className="flex items-center gap-2.5 text-xs">
+          <User className="w-4 h-4 text-sky-400 shrink-0" />
+          <span className="font-bold text-slate-300">Sales Executive:</span>
+          <select
+            value={selectedExecutive}
+            onChange={(e) => setSelectedExecutive(e.target.value)}
+            className="bg-slate-950 border border-slate-800 text-white text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none font-medium cursor-pointer"
+          >
+            <option value="All">All Executives ({visits.length})</option>
+            {uniqueExecutives.map((exec) => {
+              const count = visits.filter((v) => v.salesExecutiveName === exec).length;
+              return (
+                <option key={exec} value={exec}>
+                  {exec} ({count})
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto text-xs">
+          {selectedExecutive !== 'All' && (
             <button
               type="button"
               onClick={() => setSelectedExecutive('All')}
-              className="text-[11px] text-sky-400 hover:text-sky-300 font-bold hover:underline"
+              className="text-sky-400 hover:text-sky-300 font-bold hover:underline cursor-pointer"
             >
-              Reset to All ({visits.length})
+              Reset to All
             </button>
-          ) : (
-            <span className="text-[10px] text-slate-500 font-medium">Viewing All Executives</span>
           )}
-        </div>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          <button
-            type="button"
-            onClick={() => setSelectedExecutive('All')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border active:scale-95 ${
-              selectedExecutive === 'All'
-                ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            All Option ({visits.length})
-          </button>
-          {uniqueExecutives.map((exec) => {
-            const count = visits.filter((v) => v.salesExecutiveName === exec).length;
-            const isSelected = selectedExecutive === exec;
-            return (
-              <button
-                key={exec}
-                type="button"
-                onClick={() => setSelectedExecutive(exec)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 border flex items-center gap-1.5 active:scale-95 ${
-                  isSelected
-                    ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-600/30'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                <span>{exec}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isSelected ? 'bg-sky-800 text-sky-100' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+          <span className="text-slate-400 font-mono text-[11px]">
+            Showing {executiveFilteredVisits.length} of {visits.length} leads
+          </span>
         </div>
       </div>
 
