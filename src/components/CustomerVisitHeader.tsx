@@ -297,10 +297,10 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
               <img
                 src={appLogo}
                 alt={appTitle}
-                className="w-8 h-8 rounded-xl object-contain bg-slate-950 border border-slate-700/80 shadow-sm group-hover:border-sky-400 transition"
+                className="w-[150px] h-[70px] rounded-xl object-contain bg-slate-950 border border-slate-700/80 shadow-sm group-hover:border-sky-400 transition"
               />
             ) : (
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-blue-700 flex items-center justify-center text-white font-black text-xs text-center leading-none shadow-sm group-hover:border group-hover:border-sky-400 transition">
+              <div className="w-[150px] h-[70px] rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-blue-700 flex items-center justify-center text-white font-black text-xs text-center leading-none shadow-sm group-hover:border group-hover:border-sky-400 transition">
                 uPVC
               </div>
             )}
