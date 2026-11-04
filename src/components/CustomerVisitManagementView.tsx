@@ -284,20 +284,56 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     ]);
   };
 
-  const handleGetCurrentLocation = () => {
+  const handleGetCurrentLocation = async () => {
     if (!navigator.geolocation) {
       showToast('GPS is not supported on this browser/device');
       return;
     }
     setIsDetectingGps(true);
+    showToast('Detecting location...');
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const link = `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
         setGoogleMapsGps(link);
+        
+        try {
+          // Use Geocoding API to reverse geocode
+          const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`);
+          const data = await response.json();
+          if (data.status === 'OK' && data.results.length > 0) {
+            const result = data.results[0];
+            const addressComponents = result.address_components;
+            
+            let city = '';
+            let pincode = '';
+            let state = '';
+            
+            addressComponents.forEach((comp: any) => {
+              if (comp.types.includes('locality') || comp.types.includes('sublocality')) {
+                city = comp.long_name;
+              } else if (comp.types.includes('postal_code')) {
+                pincode = comp.long_name;
+              } else if (comp.types.includes('administrative_area_level_1')) {
+                state = comp.long_name;
+              }
+            });
+
+            if (city) setCompanyLocation(city);
+            if (city && pincode) setCityPin(`${city} - ${pincode}`);
+            else if (pincode) setCityPin(pincode);
+            if (state) setStateDistrict(state);
+
+            showToast('✓ Location & address detected!');
+          }
+        } catch (err) {
+          console.error('Reverse geocoding failed', err);
+          showToast('GPS detected, but address lookup failed.');
+        }
+
         setIsDetectingGps(false);
-        showToast('✓ GPS Coordinates captured successfully!');
       },
       (err) => {
         setIsDetectingGps(false);

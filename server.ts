@@ -261,43 +261,27 @@ async function startServer() {
       const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
       if (otp === '123456' || otp === '654321') {
         let user: any = null;
-        if (cleanMobile === '9440042407') {
-          user = {
-            id: 'emp-sales-nagarjuna',
-            name: 'nagarjuna',
-            email: 'nagarjuna@scraft.in',
-            mobileNumber: '+91 9440042407',
-            employeeCode: 'SC-EMP-436',
-            designation: 'Sales Executive',
-            role: 'sales',
-            assignedState: 'Telangana',
-            status: 'Active'
-          };
-        } else if (cleanMobile === '9824055123') {
-          user = {
-            id: 'emp-sales-01',
-            name: 'Rajeshbhai Patel',
-            email: 'rajesh.patel@scraft.in',
-            mobileNumber: '+91 98240 55123',
-            employeeCode: 'SC-EMP-001',
-            designation: 'Senior Sales Executive (Gujarat)',
-            role: 'sales',
-            assignedState: 'Gujarat',
-            status: 'Active'
-          };
-        } else {
-          user = {
-            id: 'emp-admin-01',
-            name: 'Raviraja Master Admin',
-            email: 'ravirajaindustries@gmail.com',
-            mobileNumber: `+91 ${cleanMobile}`,
-            employeeCode: 'SC-ADM-001',
-            designation: 'Managing Director & Administrator',
-            role: 'admin',
-            assignedState: 'All-India',
-            status: 'Active'
-          };
+        
+        // Find user by mobile number
+        const formattedMobile = `+91 ${cleanMobile}`;
+        
+        let userSnapshot = await db.collection('sales_employees')
+          .where('mobileNumber', '==', formattedMobile)
+          .limit(1)
+          .get();
+        
+        if (userSnapshot.empty) {
+           userSnapshot = await db.collection('sales_employees')
+             .where('mobileNumber', '==', cleanMobile)
+             .limit(1)
+             .get();
         }
+
+        if (userSnapshot.empty) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        user = { id: userSnapshot.docs[0].id, ...userSnapshot.docs[0].data() };
 
         const sessionId = crypto.randomUUID();
         const sessionData = {
