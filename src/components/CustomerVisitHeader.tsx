@@ -23,6 +23,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { AdminAlertService, SecurityAlert } from '../services/adminAlerts';
+import { SettingsService, AppBranding, DEFAULT_BRANDING } from '../services/settingsService';
 
 interface CustomerVisitHeaderProps {
   user: AppUser | null;
@@ -138,6 +139,9 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
   const [showAlertsDropdown, setShowAlertsDropdown] = useState(false);
 
+  // Firestore branding state
+  const [branding, setBranding] = useState<AppBranding>(DEFAULT_BRANDING);
+
   useEffect(() => {
     if (user?.role === 'admin') {
       const unsubscribe = AdminAlertService.subscribeToAlerts((alerts) => {
@@ -149,30 +153,14 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
     }
   }, [user]);
 
-  // Custom Company Branding & Logo State (persisted locally)
-  const [appTitle, setAppTitle] = useState(() => {
-    const saved = localStorage.getItem('scraft_app_title');
-    if (!saved || saved === 'SCRAFT uPVC Profiles' || saved.includes('Customer Visits')) {
-      localStorage.setItem('scraft_app_title', 'SCRAFT uPVC Sales Tracker');
-      return 'SCRAFT uPVC Sales Tracker';
-    }
-    return saved;
-  });
-  const [appSubtitle, setAppSubtitle] = useState(
-    () =>
-      localStorage.getItem('scraft_app_subtitle') ||
-      'Raviraja Industries • Multi-Brands'
-  );
-  const [appLogo, setAppLogo] = useState<string | null>(
-    () => localStorage.getItem('scraft_app_logo') || null
-  );
+  useEffect(() => {
+    SettingsService.getBranding().then(setBranding);
+    return SettingsService.subscribeToBranding(setBranding);
+  }, []);
 
   // Edit Brand Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editTitle, setEditTitle] = useState(appTitle);
-  const [editSubtitle, setEditSubtitle] = useState(appSubtitle);
-  const [editLogo, setEditLogo] = useState<string | null>(appLogo);
-  const [urlInput, setUrlInput] = useState('');
+  const [editBranding, setEditBranding] = useState<AppBranding>(branding);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -198,10 +186,7 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleOpenEdit = () => {
-    setEditTitle(appTitle);
-    setEditSubtitle(appSubtitle);
-    setEditLogo(appLogo);
-    setUrlInput('');
+    setEditBranding(branding);
     setUploadError(null);
     setIsEditModalOpen(true);
   };
@@ -212,13 +197,7 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
     setUploadError(null);
     try {
       const compressedDataUrl = await compressImageToDataUrl(file, 256);
-      setEditLogo(compressedDataUrl);
-      setAppLogo(compressedDataUrl);
-      try {
-        localStorage.setItem('scraft_app_logo', compressedDataUrl);
-      } catch (err) {
-        console.warn('Storage quota notice:', err);
-      }
+      setEditBranding(prev => ({ ...prev, logo: compressedDataUrl }));
     } catch (err: any) {
       console.error(err);
       setUploadError('Failed to process image. Please try another PNG or JPG.');
@@ -234,51 +213,15 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
     if (e.target) e.target.value = '';
   };
 
-  const handleApplyUrl = () => {
-    const trimmed = urlInput.trim();
-    if (trimmed) {
-      setEditLogo(trimmed);
-      setUrlInput('');
-    }
-  };
-
-  const handleSaveBrand = (e: React.FormEvent) => {
+  const handleSaveBrand = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalTitle = editTitle.trim() || 'SCRAFT uPVC Sales Tracker';
-    const finalSubtitle =
-      editSubtitle.trim() || 'Raviraja Industries • Multi-Brands';
-
-    setAppTitle(finalTitle);
-    setAppSubtitle(finalSubtitle);
-    setAppLogo(editLogo);
-    document.title = finalTitle;
-
-    try {
-      localStorage.setItem('scraft_app_title', finalTitle);
-      localStorage.setItem('scraft_app_subtitle', finalSubtitle);
-      if (editLogo) {
-        localStorage.setItem('scraft_app_logo', editLogo);
-      } else {
-        localStorage.removeItem('scraft_app_logo');
-      }
-      window.dispatchEvent(
-        new CustomEvent('scraft-brand-updated', {
-          detail: { title: finalTitle, subtitle: finalSubtitle, logo: editLogo },
-        })
-      );
-    } catch (err) {
-      console.warn('Local storage write warning:', err);
-    }
-
+    await SettingsService.updateBranding(editBranding);
+    document.title = editBranding.title;
     setIsEditModalOpen(false);
   };
 
   const handleResetToDefault = () => {
-    const defTitle = 'SCRAFT uPVC Sales Tracker';
-    const defSub = 'Raviraja Industries • Multi-Brands';
-    setEditTitle(defTitle);
-    setEditSubtitle(defSub);
-    setEditLogo(null);
+    setEditBranding(DEFAULT_BRANDING);
   };
 
   return (
@@ -293,14 +236,18 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
             className="relative shrink-0 cursor-pointer focus:outline-none transition hover:scale-105 active:scale-95 group"
             title="Click to customize logo and company title"
           >
-            {appLogo ? (
+            {branding.logo ? (
               <img
-                src={appLogo}
-                alt={appTitle}
-                className="w-[150px] h-[70px] rounded-xl object-contain bg-slate-950 border border-slate-700/80 shadow-sm group-hover:border-sky-400 transition"
+                src={branding.logo}
+                alt={branding.title}
+                style={{ width: `${branding.logoWidth}px`, height: `${branding.logoHeight}px` }}
+                className="rounded-xl object-contain bg-slate-950 border border-slate-700/80 shadow-sm group-hover:border-sky-400 transition"
               />
             ) : (
-              <div className="w-[150px] h-[70px] rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-blue-700 flex items-center justify-center text-white font-black text-xs text-center leading-none shadow-sm group-hover:border group-hover:border-sky-400 transition">
+              <div 
+                style={{ width: `${branding.logoWidth}px`, height: `${branding.logoHeight}px` }}
+                className="rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-600 to-blue-700 flex items-center justify-center text-white font-black text-xs text-center leading-none shadow-sm group-hover:border group-hover:border-sky-400 transition"
+              >
                 uPVC
               </div>
             )}
@@ -313,7 +260,7 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                 className="text-xs sm:text-sm font-extrabold tracking-tight text-white leading-tight cursor-pointer hover:text-sky-300 transition flex items-center gap-1 group"
                 title="Click to edit company name and title"
               >
-                <span>{appTitle}</span>
+                <span>{branding.title}</span>
                 <Edit3 className="w-2.5 h-2.5 text-slate-500 group-hover:text-sky-400 transition shrink-0" />
               </h1>
 
@@ -346,7 +293,7 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
               className="text-[9px] text-slate-400 leading-tight truncate max-w-[200px] sm:max-w-none cursor-pointer hover:text-slate-300 transition"
               title="Click to edit subtitle"
             >
-              {appSubtitle}
+              {branding.subtitle}
             </p>
           </div>
         </div>
@@ -622,10 +569,10 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                       <Camera className="w-3.5 h-3.5 text-sky-400" />
                       <span>Company Logo</span>
                     </label>
-                    {editLogo && (
+                    {editBranding.logo && (
                       <button
                         type="button"
-                        onClick={() => setEditLogo(null)}
+                        onClick={() => setEditBranding(prev => ({ ...prev, logo: null }))}
                         className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -637,10 +584,10 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                   <div className="flex items-center gap-3">
                     {/* Current Active Preview */}
                     <div className="shrink-0">
-                      {editLogo ? (
+                      {editBranding.logo ? (
                         <div className="relative">
                           <img
-                            src={editLogo}
+                            src={editBranding.logo}
                             alt="Logo Preview"
                             className="w-16 h-16 rounded-2xl object-contain bg-slate-900 border-2 border-sky-500/60 p-1 shadow-lg"
                           />
@@ -681,6 +628,28 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                     </div>
                   </div>
 
+                  {/* Logo Size Configuration */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="font-bold text-slate-400 text-[10px] block mb-1">Width (px)</label>
+                      <input 
+                        type="number"
+                        value={editBranding.logoWidth}
+                        onChange={(e) => setEditBranding(prev => ({ ...prev, logoWidth: parseInt(e.target.value) || 0 }))}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-400 text-[10px] block mb-1">Height (px)</label>
+                      <input 
+                        type="number"
+                        value={editBranding.logoHeight}
+                        onChange={(e) => setEditBranding(prev => ({ ...prev, logoHeight: parseInt(e.target.value) || 0 }))}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white"
+                      />
+                    </div>
+                  </div>
+
                   {/* Option 2: Quick Preset Badges */}
                   <div className="pt-2 border-t border-slate-900 space-y-1.5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -714,7 +683,7 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                               ctx.fillText(p.text, 64, 64);
                               ctx.font = '14px sans-serif';
                               ctx.fillText(p.sub, 64, 88);
-                              setEditLogo(canvas.toDataURL('image/png'));
+                              setEditBranding(prev => ({ ...prev, logo: canvas.toDataURL('image/png') }));
                             }
                           }}
                           className="p-2 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-sky-500/50 flex items-center gap-2 text-left transition active:scale-95 cursor-pointer"
@@ -741,8 +710,8 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                   <input
                     type="text"
                     required
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
+                    value={editBranding.title}
+                    onChange={(e) => setEditBranding(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="e.g. SCRAFT uPVC Sales Tracker"
                     className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-white outline-none font-bold text-xs"
                   />
@@ -756,8 +725,8 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                   <input
                     type="text"
                     required
-                    value={editSubtitle}
-                    onChange={(e) => setEditSubtitle(e.target.value)}
+                    value={editBranding.subtitle}
+                    onChange={(e) => setEditBranding(prev => ({ ...prev, subtitle: e.target.value }))}
                     placeholder="e.g. Raviraja Industries • Multi-Brands"
                     className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-white outline-none text-xs"
                   />

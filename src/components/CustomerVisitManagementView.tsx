@@ -1109,7 +1109,13 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
               <input type="text" value={followUpDiscussion} onChange={(e) => setFollowUpDiscussion(e.target.value)} placeholder="Purpose and discussion" className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none" />
             </div>
             <div>
-              <label className="font-bold text-slate-300 block mb-1">Follow-up Status</label>
+              <label className="font-bold text-slate-200 block mb-1">Lead Status</label>
+              <select value={convStatus} onChange={(e) => setConvStatus(e.target.value as LeadStatus)} className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none">
+                {LEAD_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="font-bold text-slate-200 block mb-1">Follow-up Status</label>
               <select value={followUpStatus} onChange={(e) => setFollowUpStatus(e.target.value as any)} className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none">
                 <option value="Pending">Pending</option>
                 <option value="Completed">Completed</option>

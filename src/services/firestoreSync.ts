@@ -9,6 +9,7 @@ import {
   query,
   where,
   getDocFromServer,
+  getDoc,
 } from 'firebase/firestore';
 import { getApps, initializeApp, getApp } from 'firebase/app';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -222,7 +223,10 @@ export class FirestoreSyncService {
     const path = `${VISITS_COLLECTION}/${id}`;
     try {
       const visitRef = doc(db, VISITS_COLLECTION, id);
-      await deleteDoc(visitRef);
+      const docSnap = await getDoc(visitRef);
+      if (docSnap.exists()) {
+        await deleteDoc(visitRef);
+      }
     } catch (err: any) {
       if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
         handleFirestoreError(err, OperationType.DELETE, path);

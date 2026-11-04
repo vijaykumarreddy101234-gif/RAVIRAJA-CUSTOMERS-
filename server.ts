@@ -511,36 +511,10 @@ async function startServer() {
         }
       }
 
-      // 3. Fallback: Default Raviraja Master Admin
-      const defaultAdmin = {
-        id: 'emp-admin-01',
-        name: 'Raviraja Master Admin',
-        email: 'ravirajaindustries@gmail.com',
-        mobileNumber: '+91 98250 00000',
-        employeeCode: 'SC-ADM-001',
-        designation: 'Managing Director & Administrator',
-        role: 'admin',
-        assignedState: 'All-India',
-        status: 'Active',
-        createdAt: Date.now()
-      };
-
-      res.json({ user: defaultAdmin });
+      // 3. If session is missing or invalid, return 401
+      return res.status(401).json({ error: 'Unauthorized' });
     } catch (error) {
-      res.json({
-        user: {
-          id: 'emp-admin-01',
-          name: 'Raviraja Master Admin',
-          email: 'ravirajaindustries@gmail.com',
-          mobileNumber: '+91 98250 00000',
-          employeeCode: 'SC-ADM-001',
-          designation: 'Managing Director & Administrator',
-          role: 'admin',
-          assignedState: 'All-India',
-          status: 'Active',
-          createdAt: Date.now()
-        }
-      });
+      res.status(500).json({ error: 'Internal Server Error' });
     }
   });
 
