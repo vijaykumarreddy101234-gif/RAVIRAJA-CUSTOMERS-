@@ -30,6 +30,7 @@ import {
   Mail,
   Copy,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { CustomerVisit, VisitPhoto } from '../types/customerVisit';
 import { INDIAN_STATES } from '../data/indiaLocations';
@@ -222,132 +223,126 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
         </div>
       </div>
 
-      {/* Simple, Non-Clumsy Filter Toolbar matching clean Excel design */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-sm space-y-2.5">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search company, contact, city, mobile, brand..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 shadow-inner"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+      {/* Simplified, Non-Clumsy Filter Toolbar */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-sm space-y-4">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search by company, customer, city, mobile, brand..."
+            className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-11 pr-10 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-          {/* Clean Dropdown Selects */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            {/* Sales Executive Selector */}
+        {/* Clean Grid of Filters */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Executive</label>
             <select
               value={selectedExecutive}
               onChange={(e) => setSelectedExecutive(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:border-sky-500 outline-none cursor-pointer"
             >
-              <option value="All">All Executives ({visits.length})</option>
+              <option value="All">All Executives</option>
               {uniqueExecutives.map((exec) => (
-                <option key={exec} value={exec}>
-                  {exec} ({visits.filter((v) => v.salesExecutiveName === exec).length})
-                </option>
+                <option key={exec} value={exec}>{exec}</option>
               ))}
             </select>
+          </div>
 
-            {/* Stages / Status Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Status</label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:border-sky-500 outline-none cursor-pointer"
             >
               <option value="All">All Stages</option>
               <option value="Hot">🔥 Hot</option>
               <option value="Warm">⚡ Warm</option>
               <option value="Cold">❄️ Cold</option>
-              <option value="Won / Closed">🏆 Won / Closed</option>
-              <option value="Lost">Lost</option>
+              <option value="Won / Closed">🏆 Won</option>
             </select>
+          </div>
 
-            {/* Brand Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Brand</label>
             <select
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:border-sky-500 outline-none cursor-pointer"
             >
               <option value="All">All Brands</option>
               <option value="S CRAFT">S CRAFT</option>
               <option value="SMART">SMART</option>
               <option value="OTHERS">OTHERS</option>
             </select>
+          </div>
 
-            {/* Customer Type Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Type</label>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none cursor-pointer"
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:border-sky-500 outline-none cursor-pointer"
             >
               <option value="All">All Types</option>
               <option value="Fabricator">Fabricator</option>
               <option value="Dealer">Dealer</option>
               <option value="Distributor">Distributor</option>
-              <option value="Builder">Builder</option>
-              <option value="Wholesaler">Wholesaler</option>
-              <option value="Direct OEM">Direct OEM</option>
             </select>
+          </div>
 
-            {/* State Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">State</label>
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-2.5 py-2 focus:border-sky-500 outline-none cursor-pointer"
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:border-sky-500 outline-none cursor-pointer"
             >
               <option value="All">All States</option>
               {INDIAN_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
-
-            {/* Showing Count */}
-            <span className="text-xs text-slate-400 font-medium whitespace-nowrap px-1">
-              Showing {filteredVisits.length} of {visits.length}
-            </span>
-
-            {/* Reset All Filters Button */}
-            {(selectedExecutive !== 'All' ||
-              selectedStatus !== 'All' ||
-              selectedBrand !== 'All' ||
-              selectedType !== 'All' ||
-              selectedState !== 'All' ||
-              selectedPISent !== 'All' ||
-              searchTerm) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedExecutive('All');
-                  setSelectedStatus('All');
-                  setSelectedBrand('All');
-                  setSelectedType('All');
-                  setSelectedState('All');
-                  setSelectedPISent('All');
-                  setSearchTerm('');
-                }}
-                className="text-xs text-sky-400 hover:text-sky-300 font-bold px-2.5 py-1.5 bg-sky-950/60 border border-sky-800/60 rounded-xl hover:underline cursor-pointer"
-              >
-                Reset All
-              </button>
-            )}
           </div>
         </div>
+
+        {/* Reset Bar */}
+        {(selectedExecutive !== 'All' || selectedStatus !== 'All' || selectedBrand !== 'All' || selectedType !== 'All' || selectedState !== 'All' || searchTerm) && (
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800/50">
+            <span className="text-[10px] text-slate-500">
+              Filtering {filteredVisits.length} of {visits.length} records
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedExecutive('All');
+                setSelectedStatus('All');
+                setSelectedBrand('All');
+                setSelectedType('All');
+                setSelectedState('All');
+                setSearchTerm('');
+              }}
+              className="text-[10px] font-bold text-sky-400 hover:text-white flex items-center gap-1 transition"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset All Filters</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Visits List */}
@@ -934,7 +929,18 @@ export const CustomerVisitList: React.FC<CustomerVisitListProps> = ({
                     type="button"
                     onClick={() => {
                       const text = formatVisitReportText(sharingVisit);
-                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                      try {
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.target = '_blank';
+                        a.rel = 'noopener noreferrer';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      } catch {
+                        window.open(url, '_blank');
+                      }
                     }}
                     className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition active:scale-95 cursor-pointer"
                   >

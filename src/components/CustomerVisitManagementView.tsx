@@ -30,6 +30,7 @@ import {
   HelpCircle,
   Send,
   UserCheck,
+  ChevronDown,
 } from 'lucide-react';
 import {
   CustomerVisit,
@@ -38,6 +39,7 @@ import {
   PISentStatus,
   AdditionalContact,
   VisitPhoto,
+  UPVCBrand,
 } from '../types/customerVisit';
 import { AppUser } from '../services/firebaseAuth';
 import { EmployeeService } from '../services/employeeService';
@@ -58,27 +60,8 @@ interface CustomerVisitManagementViewProps {
   visits: CustomerVisit[];
 }
 
-const COMMON_OPINION_PRESETS = [
-  'Pricing Opinion',
-  'Quality & Chambers',
-  'Competitor Credit Terms',
-  'Delivery Time',
-  'Sample Corner Request',
-];
-
-const POPULAR_COMPETITOR_BRANDS = [
-  'Kommerling',
-  'Prominance',
-  'NCL VEKA',
-  'Plastone',
-  'Aluplast',
-  'Deceuninck',
-  'Simta Astrix',
-];
-
 /**
  * Compresses photos to clean, lightweight data URLs (max 800px, JPEG 0.75)
- * for permanent storage without quota or memory errors.
  */
 function compressPhoto(file: File, maxDim = 800, quality = 0.75): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -186,9 +169,22 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
   const [whatsappEmail, setWhatsappEmail] = useState('');
   const [additionalContacts, setAdditionalContacts] = useState<AdditionalContact[]>([]);
 
-  // 3. CONVERSION CARD & 4. CUSTOMER OPINION CARD (Single clean writing fields for what he said)
-  const [conversionText, setConversionText] = useState('');
-  const [opinionText, setOpinionText] = useState('');
+  // 3. CONVERSION CARD (Box 3)
+  const [conversionRemarks, setConversionRemarks] = useState('');
+  const [convStatus, setConvStatus] = useState<LeadStatus>('Hot');
+  const [convTargetBrand, setConvTargetBrand] = useState<UPVCBrand>('S CRAFT');
+  const [convExpectedTonnage, setConvExpectedTonnage] = useState('5 MT / Month');
+  const [convDealValue, setConvDealValue] = useState('');
+  const [convProbability, setConvProbability] = useState('80%');
+
+  // 4. CUSTOMER OPINION CARD (Box 4)
+  const [opinionRemarks, setOpinionRemarks] = useState('');
+  const [opPricing, setOpPricing] = useState('');
+  const [opQuality, setOpQuality] = useState('');
+  const [opCompetitor, setOpCompetitor] = useState('');
+  const [opInterest, setOpInterest] = useState('');
+  const [opThickness, setOpThickness] = useState('');
+  const [opTerms, setOpTerms] = useState('');
 
   // 5. VISIT PHOTOS & VISITING CARD
   const [customerId] = useState(() => `CUST-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -262,7 +258,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     showToast(`✓ Auto-filled details for "${comp.companyName}"`);
   };
 
-  // Add Brand Chip
   const handleAddBrandChip = (brandToAdd?: string) => {
     const target = (brandToAdd || newBrandInput).trim();
     if (!target) return;
@@ -276,7 +271,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     setCurrentlyUsingBrands((prev) => prev.filter((item) => item !== b));
   };
 
-  // Add Person (Additional contact row)
   const handleAddPerson = () => {
     setAdditionalContacts((prev) => [
       ...prev,
@@ -290,7 +284,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     ]);
   };
 
-  // GPS Location capture
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       showToast('GPS is not supported on this browser/device');
@@ -315,13 +308,27 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
   };
 
   const handleOpenGoogleMaps = () => {
+    let url = '';
     if (googleMapsGps) {
-      window.open(googleMapsGps, '_blank');
+      url = googleMapsGps;
     } else if (companyLocation || cityPin) {
       const q = encodeURIComponent(`${companyLocation} ${cityPin} ${stateDistrict}`);
-      window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
+      url = `https://www.google.com/maps/search/?api=1&query=${q}`;
     } else {
       showToast('Please capture GPS or enter location first');
+      return;
+    }
+
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      window.open(url, '_blank');
     }
   };
 
@@ -341,26 +348,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     }
   };
 
-  // Add Branch
-  const handleAddBranchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!branchInput.name.trim()) return;
-    setBranches((prev) => [
-      ...prev,
-      {
-        id: `br-${Date.now()}`,
-        name: branchInput.name.trim(),
-        city: branchInput.city.trim() || cityPin,
-        state: stateDistrict,
-        address: branchInput.address.trim(),
-      },
-    ]);
-    setBranchInput({ name: '', city: '', address: '' });
-    setShowAddBranch(false);
-    showToast('✓ Branch location added');
-  };
-
-  // Photos & Visiting Card Uploads
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -395,7 +382,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     if (e.target) e.target.value = '';
   };
 
-  // Clear Form
   const resetForm = () => {
     setCompanyName('');
     setCustomerType('Fabricator');
@@ -408,8 +394,17 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     setMobileNumber('');
     setWhatsappEmail('');
     setAdditionalContacts([]);
-    setConversionText('');
-    setOpinionText('');
+    setConversionRemarks('');
+    setOpinionRemarks('');
+    setConvExpectedTonnage('5 MT / Month');
+    setConvDealValue('');
+    setConvProbability('80%');
+    setOpPricing('');
+    setOpQuality('');
+    setOpCompetitor('');
+    setOpInterest('');
+    setOpThickness('');
+    setOpTerms('');
     setPhotos([]);
     setVisitingCard(null);
     setCompanyLocation('');
@@ -421,7 +416,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     setFollowUpStatus('Pending');
   };
 
-  // Submit Visit
   const handleSaveVisit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyName.trim()) {
@@ -441,15 +435,13 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
     const todayStr = now.toISOString().split('T')[0];
     const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // Derive city and pin
     const cityParts = cityPin.split(/[-–,]/);
     const resolvedCity = cityParts[0]?.trim() || companyLocation || 'Industrial Area';
     const resolvedPin = cityParts[1]?.trim() || '';
 
-    // Combined remarks
     const combinedRemarks = [
-      conversionText ? `Conversion: ${conversionText}` : '',
-      opinionText ? `Opinion: ${opinionText}` : '',
+      conversionRemarks ? `Conversion: ${conversionRemarks}` : '',
+      opinionRemarks ? `Opinion: ${opinionRemarks}` : '',
       followUpDiscussion ? `Follow-up: ${followUpDiscussion}` : '',
     ]
       .filter(Boolean)
@@ -483,25 +475,27 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
       brand: 'S CRAFT',
       interestedSeries: `SCRAFT uPVC Profiles`,
       interestedBrand: `SCRAFT Profiles - ${monthlyTonnage || '5 MT / Month'}`,
-      leadStatus: 'Hot',
+      leadStatus: convStatus,
       piSent: 'No',
+      conversionRemarks,
+      opinionRemarks,
       visitRemarks: combinedRemarks || 'Customer visit completed successfully',
-      conversionCard: conversionText
-        ? {
-            leadStatus: 'Hot',
-            productsDiscussed: 'S CRAFT',
-            targetBrand: 'S CRAFT',
-            discussionNotes: conversionText,
-          }
-        : undefined,
-      opinionCard: opinionText
-        ? {
-            customerFeedback: opinionText,
-          }
-        : undefined,
+      conversionCard: {
+        status: convStatus,
+        targetBrand: convTargetBrand,
+        expectedTonnage: convExpectedTonnage,
+        dealValue: convDealValue,
+        probability: convProbability
+      },
+      opinionCard: {
+        pricingOpinion: opPricing,
+        qualityChambers: opQuality,
+        competitorOpinion: opCompetitor,
+        customerInterestSeries: opInterest,
+        qualityWallThickness: opThickness,
+        priceCreditTerms: opTerms
+      },
       followUpDate,
-      followUpTime: '11:00 AM',
-      followUpPurpose: followUpDiscussion,
       followUpRequired,
       followUpDiscussion,
       assignedSalesperson,
@@ -569,21 +563,19 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
 
       {/* MAIN SINGLE-PAGE VISIT FORM */}
       <form onSubmit={handleSaveVisit} className="space-y-4 text-xs">
-        {/* CARD 1: CUSTOMER / COMPANY DETAILS */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
+        {/* CARD 1: COMPANY DETAILS */}
+        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
               <Building className="w-4 h-4 text-sky-400" />
-              <span>CUSTOMER / COMPANY DETAILS</span>
+              <span>COMPANY DETAILS</span>
             </h2>
             <span className="text-[10px] font-mono text-sky-400 bg-sky-950/80 border border-sky-800/50 px-2 py-0.5 rounded-lg">
               Card 1
             </span>
           </div>
 
-          {/* Row 1: Company Name *, Customer Type *, CURRENT USING BRANDS +ADD BUTTON, MONTHLY TONNAGE */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Company Name * */}
             <div>
               <label className="font-bold text-slate-200 block mb-1">Company Name *</label>
               <input
@@ -596,7 +588,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
               />
             </div>
 
-            {/* Customer Type * */}
             <div>
               <label className="font-bold text-slate-200 block mb-1">Customer Type *</label>
               <select
@@ -612,7 +603,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
               </select>
             </div>
 
-            {/* CURRENT USING BRANDS +ADD BUTTON */}
             <div>
               <label className="font-bold text-slate-200 block mb-1">CURRENT USING BRANDS</label>
               <div className="flex items-center gap-1.5">
@@ -637,7 +627,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
                   +ADD
                 </button>
               </div>
-              {/* Brand Chips */}
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {currentlyUsingBrands.map((b) => (
                   <span
@@ -657,7 +646,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
               </div>
             </div>
 
-            {/* MONTHLY TONNAGE */}
             <div>
               <label className="font-bold text-slate-200 block mb-1">MONTHLY TONNAGE</label>
               <input
@@ -670,7 +658,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
             </div>
           </div>
 
-          {/* Row 2: GST Number, Company Address */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div>
               <label className="font-bold text-slate-300 block mb-1">GST Number</label>
@@ -704,8 +691,8 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
           </div>
         </div>
 
-        {/* CARD 2: CUSTOMER DETAILS (Owner & Contacts) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
+        {/* CARD 2: CUSTOMER DETAILS */}
+        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
               <User className="w-4 h-4 text-emerald-400" />
@@ -716,7 +703,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
             </span>
           </div>
 
-          {/* Row 1: Name *, Designation *, Mobile Number *, WhatsApp / Email */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="font-bold text-slate-200 block mb-1">Name *</label>
@@ -769,7 +755,6 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
             </div>
           </div>
 
-          {/* Action: + ADD PERSON | In the CRM, allow multiple contact rows under the same company */}
           <div className="pt-2 border-t border-slate-800/80">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] text-slate-400 font-semibold">
@@ -858,79 +843,97 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
           </div>
         </div>
 
-        {/* CARDS 3 & 4: CONVERSION CARD & CUSTOMER OPINION CARD (SINGLE CLEAN WRITING AREAS) */}
+        {/* CARDS 3 & 4: CONVERSION CARD & CUSTOMER OPINION CARD (Exact match to image_acd258e0.png) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* CONVERSION CARD */}
-          <div className="bg-slate-900 border border-amber-500/30 rounded-3xl p-4 sm:p-5 shadow-sm space-y-2.5">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-              <div>
-                <h2 className="text-xs sm:text-sm font-extrabold text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-amber-400" />
-                  <span>CONVERSION CARD</span>
-                </h2>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Record what he said about order conversion & deal discussion
-                </p>
+          {/* CARD 3: CONVERSION CARD */}
+          <div className="bg-[#020712] border border-[#0d1f36] rounded-2xl p-5 shadow-2xl space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <Flame className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-base font-black text-amber-400 uppercase tracking-wide">
+                    CONVERSION CARD
+                  </h2>
+                  <p className="text-slate-400 text-xs mt-1 leading-snug">
+                    Record what he said about order conversion & deal discussion
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 shrink-0">
                 <VoiceDictationButton
                   onTranscript={(text) =>
-                    setConversionText((prev) => (prev ? `${prev} ${text}` : text))
+                    setConversionRemarks((prev) => (prev ? `${prev} ${text}` : text))
                   }
-                  title="Dictate order conversion remarks via microphone"
+                  variant="ghost"
+                  className="w-10 h-10 rounded-full bg-[#081220] border border-[#162740] text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95"
+                  title="Dictate order conversion notes"
                 />
-                <span className="text-[10px] font-mono text-amber-300 bg-amber-950/80 border border-amber-800/50 px-2 py-0.5 rounded-lg">
-                  Card 3
-                </span>
+                <div className="bg-[#1c0f05] border border-amber-600/70 rounded-xl px-3 py-1.5 text-center min-w-[46px] flex flex-col items-center justify-center">
+                  <span className="text-[10px] text-amber-500 font-bold block leading-tight">Card</span>
+                  <span className="text-xs text-amber-400 font-black block leading-tight">3</span>
+                </div>
               </div>
             </div>
 
-            <textarea
-              rows={3}
-              value={conversionText}
-              onChange={(e) => setConversionText(e.target.value)}
-              placeholder="Write or dictate what customer said regarding order conversion, deal terms, readiness to buy..."
-              className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl p-3 text-white outline-none resize-none text-xs placeholder-slate-500 transition font-normal"
-            />
+            <div className="border-t border-slate-800/80 my-2" />
+
+            <div>
+              <textarea
+                value={conversionRemarks}
+                onChange={(e) => setConversionRemarks(e.target.value)}
+                placeholder="Write or dictate what customer said regarding order conversion, deal terms, readiness to buy..."
+                rows={4}
+                className="w-full bg-[#040c1a] border border-[#0f2138] rounded-2xl p-4 text-white text-xs placeholder:text-slate-500 outline-none focus:border-amber-500/60 leading-relaxed resize-none font-medium min-h-[110px]"
+              />
+            </div>
           </div>
 
-          {/* CUSTOMER OPINION CARD */}
-          <div className="bg-slate-900 border border-sky-500/30 rounded-3xl p-4 sm:p-5 shadow-sm space-y-2.5">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-              <div>
-                <h2 className="text-xs sm:text-sm font-extrabold text-sky-300 uppercase tracking-wider flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-sky-400" />
-                  <span>CUSTOMER OPINION CARD</span>
-                </h2>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Record what he said regarding opinion, feedback & requirements
-                </p>
+          {/* CARD 4: CUSTOMER OPINION CARD */}
+          <div className="bg-[#020712] border border-[#0d1f36] rounded-2xl p-5 shadow-2xl space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <MessageCircle className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-base font-black text-sky-400 uppercase tracking-wide leading-tight">
+                    CUSTOMER OPINION CARD
+                  </h2>
+                  <p className="text-slate-400 text-xs mt-1 leading-snug">
+                    Record what he said regarding opinion, feedback & requirements
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 shrink-0">
                 <VoiceDictationButton
                   onTranscript={(text) =>
-                    setOpinionText((prev) => (prev ? `${prev} ${text}` : text))
+                    setOpinionRemarks((prev) => (prev ? `${prev} ${text}` : text))
                   }
-                  title="Dictate customer opinion remarks via microphone"
+                  variant="ghost"
+                  className="w-10 h-10 rounded-full bg-[#081220] border border-[#162740] text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95"
+                  title="Dictate customer opinion notes"
                 />
-                <span className="text-[10px] font-mono text-sky-300 bg-sky-950/80 border border-sky-800/50 px-2 py-0.5 rounded-lg">
-                  Card 4
-                </span>
+                <div className="bg-[#051829] border border-sky-600/70 rounded-xl px-3 py-1.5 text-center min-w-[46px] flex flex-col items-center justify-center">
+                  <span className="text-[10px] text-sky-400 font-bold block leading-tight">Card</span>
+                  <span className="text-xs text-sky-400 font-black block leading-tight">4</span>
+                </div>
               </div>
             </div>
 
-            <textarea
-              rows={3}
-              value={opinionText}
-              onChange={(e) => setOpinionText(e.target.value)}
-              placeholder="Write or dictate what customer said regarding product opinion, quality, competitor comparison, remarks..."
-              className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-2xl p-3 text-white outline-none resize-none text-xs placeholder-slate-500 transition font-normal"
-            />
+            <div className="border-t border-slate-800/80 my-2" />
+
+            <div>
+              <textarea
+                value={opinionRemarks}
+                onChange={(e) => setOpinionRemarks(e.target.value)}
+                placeholder="Write or dictate what customer said regarding product opinion, quality, competitor comparison, remarks..."
+                rows={4}
+                className="w-full bg-[#040c1a] border border-[#0f2138] rounded-2xl p-4 text-white text-xs placeholder:text-slate-500 outline-none focus:border-sky-500/60 leading-relaxed resize-none font-medium min-h-[110px]"
+              />
+            </div>
           </div>
         </div>
 
         {/* CARD 5: VISIT PHOTOS & VISITING CARD */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
+        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
             <div>
               <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
@@ -946,172 +949,53 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
             </span>
           </div>
 
-          {/* Hidden File Inputs */}
-          <input
-            type="file"
-            ref={cameraInputRef}
-            onChange={handlePhotoUpload}
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-          />
-          <input
-            type="file"
-            ref={photoInputRef}
-            onChange={handlePhotoUpload}
-            multiple
-            accept="image/*"
-            className="hidden"
-          />
-          <input
-            type="file"
-            ref={cardCameraRef}
-            onChange={handleVisitingCardUpload}
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-          />
-          <input
-            type="file"
-            ref={cardGalleryRef}
-            onChange={handleVisitingCardUpload}
-            accept="image/*"
-            className="hidden"
-          />
+          <input type="file" ref={cameraInputRef} onChange={handlePhotoUpload} accept="image/*" capture="environment" className="hidden" />
+          <input type="file" ref={photoInputRef} onChange={handlePhotoUpload} multiple accept="image/*" className="hidden" />
+          <input type="file" ref={cardCameraRef} onChange={handleVisitingCardUpload} accept="image/*" capture="environment" className="hidden" />
+          <input type="file" ref={cardGalleryRef} onChange={handleVisitingCardUpload} accept="image/*" className="hidden" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* A. VISIT PHOTOS */}
             <div className="p-3.5 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-200 text-xs flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-teal-400" />
-                  <span>A. VISIT PHOTOS ({photos.length})</span>
-                </span>
-                <span className="text-[10px] text-slate-500">Workshop & Factory</span>
+                <span className="font-bold text-slate-200 text-xs flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5 text-teal-400" /><span>A. VISIT PHOTOS ({photos.length})</span></span>
               </div>
-
-              {/* Large Button: + ADD MULTIPLE PHOTOS */}
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="py-2.5 px-3 rounded-xl bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/40 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Open Camera</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                >
-                  <ImageIcon className="w-4 h-4 text-sky-400" />
-                  <span>+ ADD MULTIPLE PHOTOS</span>
-                </button>
+                <button type="button" onClick={() => cameraInputRef.current?.click()} className="py-2.5 px-3 rounded-xl bg-teal-600/20 text-teal-300 border border-teal-500/40 font-bold text-xs flex items-center justify-center gap-1.5 transition"><Camera className="w-4 h-4" /><span>Open Camera</span></button>
+                <button type="button" onClick={() => photoInputRef.current?.click()} className="py-2.5 px-3 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition"><ImageIcon className="w-4 h-4 text-sky-400" /><span>+ ADD PHOTOS</span></button>
               </div>
-
-              <p className="text-[10px] text-slate-400 leading-tight">
-                Camera / Gallery • Preview • Description • Store against this Customer ID + Visit ID
-              </p>
-
-              {/* Photos Gallery Strip */}
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
                   {photos.map((photo, pIdx) => (
-                    <div
-                      key={photo.id || pIdx}
-                      className="relative rounded-xl overflow-hidden border border-slate-700 bg-black group"
-                    >
-                      <img
-                        src={photo.dataUrl}
-                        alt={`Visit photo ${pIdx + 1}`}
-                        className="w-full h-16 object-cover cursor-pointer group-hover:scale-105 transition"
-                        onClick={() => setSelectedPhotoModal(photo.dataUrl)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setPhotos((prev) => prev.filter((p) => p.id !== photo.id))}
-                        className="absolute top-1 right-1 p-0.5 rounded bg-black/80 text-rose-400 hover:text-white"
-                      >
-                        ✕
-                      </button>
-                      <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] text-white px-1 py-0.2 truncate text-center">
-                        {photo.caption || `Photo ${pIdx + 1}`}
-                      </span>
+                    <div key={photo.id || pIdx} className="relative rounded-xl overflow-hidden border border-slate-700 bg-black">
+                      <img src={photo.dataUrl} alt={`Visit ${pIdx}`} className="w-full h-16 object-cover cursor-pointer" onClick={() => setSelectedPhotoModal(photo.dataUrl)} />
+                      <button type="button" onClick={() => setPhotos(prev => prev.filter(p => p.id !== photo.id))} className="absolute top-0.5 right-0.5 p-1 bg-black/60 rounded-full text-rose-400 hover:text-white"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* B. VISITING CARD */}
             <div className="p-3.5 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-200 text-xs flex items-center gap-1.5">
-                  <CreditCard className="w-3.5 h-3.5 text-sky-400" />
-                  <span>B. VISITING CARD</span>
-                </span>
-                <span className="text-[10px] text-slate-500">Owner / Director Card</span>
+                <span className="font-bold text-slate-200 text-xs flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5 text-sky-400" /><span>B. VISITING CARD</span></span>
               </div>
-
-              {/* Large Button: UPLOAD VISITING CARD */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => cardCameraRef.current?.click()}
-                  className="py-2.5 px-3 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/40 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Capture Card</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cardGalleryRef.current?.click()}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                >
-                  <CreditCard className="w-4 h-4 text-emerald-400" />
-                  <span>UPLOAD VISITING CARD</span>
-                </button>
-              </div>
-
-              <p className="text-[10px] text-slate-400 leading-tight">
-                Camera / Gallery • Contact Person Name • Keep visiting cards separate from visit photos
-              </p>
-
-              {/* Card Thumbnail Preview */}
-              {visitingCard ? (
-                <div className="relative rounded-xl overflow-hidden border border-sky-500/60 bg-black p-1 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={visitingCard}
-                      alt="Visiting card"
-                      className="w-16 h-12 rounded-lg object-cover cursor-pointer"
-                      onClick={() => setSelectedPhotoModal(visitingCard)}
-                    />
-                    <div>
-                      <span className="text-[11px] font-bold text-white block">Visiting Card Stored</span>
-                      <span className="text-[9px] text-sky-300">{customerName || 'Contact Person'}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setVisitingCard(null)}
-                    className="p-1.5 rounded-lg bg-slate-800 text-rose-400 hover:text-white mr-1"
-                  >
-                    ✕ Remove
-                  </button>
+              {!visitingCard ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => cardCameraRef.current?.click()} className="py-2.5 px-3 rounded-xl bg-sky-600/20 text-sky-300 border border-sky-500/40 font-bold text-xs flex items-center justify-center gap-1.5 transition"><Camera className="w-4 h-4" /><span>Capture Card</span></button>
+                  <button type="button" onClick={() => cardGalleryRef.current?.click()} className="py-2.5 px-3 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition"><ImageIcon className="w-4 h-4" /><span>Add From Gallery</span></button>
                 </div>
               ) : (
-                <div className="p-3 text-center border border-dashed border-slate-800 rounded-xl text-slate-500 text-[10px]">
-                  No visiting card uploaded yet
+                <div className="relative group rounded-xl overflow-hidden border border-slate-700 bg-black aspect-[3/2] max-h-32">
+                  <img src={visitingCard} alt="Visiting Card" className="w-full h-full object-contain cursor-pointer" onClick={() => setSelectedPhotoModal(visitingCard)} />
+                  <button type="button" onClick={() => setVisitingCard(null)} className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* CARD 4: CUSTOMER LOCATION */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
+        {/* CARD 6: CUSTOMER LOCATION */}
+        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
               <MapPin className="w-4 h-4 text-rose-400" />
@@ -1122,168 +1006,39 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
             </span>
           </div>
 
-          {/* Row 1: Company Location *, State / District *, City / PIN Code *, Google Maps Link / GPS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="font-bold text-slate-200 block mb-1">Company Location *</label>
-              <input
-                type="text"
-                required
-                value={companyLocation}
-                onChange={(e) => setCompanyLocation(e.target.value)}
-                placeholder="Enter company location"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white outline-none"
-              />
+              <input type="text" required value={companyLocation} onChange={(e) => setCompanyLocation(e.target.value)} placeholder="Enter location" className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white outline-none" />
             </div>
-
             <div>
               <label className="font-bold text-slate-200 block mb-1">State / District *</label>
-              <select
-                value={stateDistrict}
-                onChange={(e) => setStateDistrict(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white outline-none"
-              >
-                {INDIAN_STATES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
+              <select value={stateDistrict} onChange={(e) => setStateDistrict(e.target.value)} className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white outline-none">
+                {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-
             <div>
               <label className="font-bold text-slate-200 block mb-1">City / PIN Code *</label>
-              <input
-                type="text"
-                required
-                value={cityPin}
-                onChange={(e) => setCityPin(e.target.value)}
-                placeholder="Enter city and PIN"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white outline-none"
-              />
+              <input type="text" required value={cityPin} onChange={(e) => setCityPin(e.target.value)} placeholder="City and PIN" className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white outline-none" />
             </div>
-
             <div>
               <label className="font-bold text-slate-200 block mb-1">Google Maps Link / GPS</label>
-              <input
-                type="text"
-                value={googleMapsGps}
-                onChange={(e) => setGoogleMapsGps(e.target.value)}
-                placeholder="Paste map link or GPS"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white font-mono text-[11px] outline-none"
-              />
+              <input type="text" value={googleMapsGps} onChange={(e) => setGoogleMapsGps(e.target.value)} placeholder="Map link or GPS" className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-3 py-2.5 text-white font-mono text-[11px] outline-none" />
             </div>
           </div>
 
-          {/* Action Buttons Row: Exactly as in CSV */}
           <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* GET CURRENT LOCATION */}
-              <button
-                type="button"
-                onClick={handleGetCurrentLocation}
-                disabled={isDetectingGps}
-                className="px-3.5 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                <span>{isDetectingGps ? 'Capturing GPS...' : 'GET CURRENT LOCATION'}</span>
-              </button>
-
-              {/* OPEN IN GOOGLE MAPS */}
-              <button
-                type="button"
-                onClick={handleOpenGoogleMaps}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-                <span>OPEN IN GOOGLE MAPS</span>
-              </button>
-
-              {/* COPY ADDRESS */}
-              <button
-                type="button"
-                onClick={handleCopyAddress}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-              >
-                <Copy className="w-3.5 h-3.5 text-emerald-400" />
-                <span>COPY ADDRESS</span>
-              </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleGetCurrentLocation} disabled={isDetectingGps} className="px-3.5 py-2 rounded-xl bg-rose-600/20 text-rose-300 border border-rose-500/40 font-bold text-xs flex items-center gap-1.5 transition active:scale-95"><Navigation className="w-3.5 h-3.5" /><span>{isDetectingGps ? 'Capturing...' : 'GET GPS'}</span></button>
+              <button type="button" onClick={handleOpenGoogleMaps} className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition"><ExternalLink className="w-3.5 h-3.5 text-sky-400" /><span>OPEN MAPS</span></button>
+              <button type="button" onClick={handleCopyAddress} className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition"><Copy className="w-3.5 h-3.5 text-emerald-400" /><span>COPY ADDRESS</span></button>
             </div>
-
-            {/* + ADD BRANCH */}
-            <button
-              type="button"
-              onClick={() => setShowAddBranch(!showAddBranch)}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ ADD BRANCH</span>
-            </button>
+            <button type="button" onClick={() => setShowAddBranch(!showAddBranch)} className="px-3.5 py-2 rounded-xl bg-slate-800 text-sky-400 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition"><Plus className="w-3.5 h-3.5" /><span>+ BRANCH</span></button>
           </div>
-
-          {/* Add Branch Inline Panel */}
-          {showAddBranch && (
-            <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2 animate-fadeIn">
-              <span className="font-bold text-slate-300 block">Add Branch Location:</span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  placeholder="Branch Name (e.g. Surat Warehouse)"
-                  value={branchInput.name}
-                  onChange={(e) => setBranchInput((prev) => ({ ...prev, name: e.target.value }))}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Branch City"
-                  value={branchInput.city}
-                  onChange={(e) => setBranchInput((prev) => ({ ...prev, city: e.target.value }))}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white"
-                />
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    placeholder="Branch Street Address"
-                    value={branchInput.address}
-                    onChange={(e) => setBranchInput((prev) => ({ ...prev, address: e.target.value }))}
-                    className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white w-full"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddBranchSubmit}
-                    className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shrink-0"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Branch list */}
-          {branches.length > 0 && (
-            <div className="pt-1 flex flex-wrap gap-1.5">
-              {branches.map((b) => (
-                <span
-                  key={b.id}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-300"
-                >
-                  <strong>{b.name}</strong> • {b.city}
-                  <button
-                    type="button"
-                    onClick={() => setBranches((prev) => prev.filter((item) => item.id !== b.id))}
-                    className="text-rose-400 hover:text-white ml-1"
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* CARD 5: NEXT FOLLOW-UP */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
+        {/* CARD 7: NEXT FOLLOW-UP */}
+        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
               <Calendar className="w-4 h-4 text-cyan-400" />
@@ -1294,67 +1049,32 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
             </span>
           </div>
 
-          {/* Row 1: Follow-up Required *, Follow-up Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="font-bold text-slate-200 block mb-1">Follow-up Required *</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {(['Yes', 'No'] as const).map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setFollowUpRequired(opt)}
-                    className={`py-2 rounded-xl font-bold text-xs border transition ${
-                      followUpRequired === opt
-                        ? 'bg-cyan-600 text-white border-cyan-500 font-extrabold shadow'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-                    }`}
-                  >
-                    {opt}
-                  </button>
+                  <button key={opt} type="button" onClick={() => setFollowUpRequired(opt)} className={`py-2 rounded-xl font-bold text-xs border transition ${followUpRequired === opt ? 'bg-cyan-600 text-white border-cyan-500 shadow' : 'bg-slate-950 text-slate-400 border-slate-800'}`}>{opt}</button>
                 ))}
               </div>
             </div>
-
             <div>
               <label className="font-bold text-slate-200 block mb-1">Follow-up Date</label>
-              <input
-                type="date"
-                value={followUpDate}
-                onChange={(e) => setFollowUpDate(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-white outline-none"
-              />
+              <input type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-white outline-none" />
             </div>
           </div>
 
-          {/* Row 2: Follow-up Discussion, Follow-up Status */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1">
                 <label className="font-bold text-slate-300 block">Follow-up Discussion</label>
-                <VoiceDictationButton
-                  onTranscript={(text) =>
-                    setFollowUpDiscussion((prev) => (prev ? `${prev} ${text}` : text))
-                  }
-                  title="Dictate follow-up discussion via microphone"
-                />
+                <VoiceDictationButton onTranscript={(text) => setFollowUpDiscussion((prev) => (prev ? `${prev} ${text}` : text))} title="Dictate follow-up" />
               </div>
-              <input
-                type="text"
-                value={followUpDiscussion}
-                onChange={(e) => setFollowUpDiscussion(e.target.value)}
-                placeholder="Enter purpose and discussion or dictate via microphone"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none"
-              />
+              <input type="text" value={followUpDiscussion} onChange={(e) => setFollowUpDiscussion(e.target.value)} placeholder="Purpose and discussion" className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none" />
             </div>
-
             <div>
               <label className="font-bold text-slate-300 block mb-1">Follow-up Status</label>
-              <select
-                value={followUpStatus}
-                onChange={(e) => setFollowUpStatus(e.target.value as any)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none"
-              >
+              <select value={followUpStatus} onChange={(e) => setFollowUpStatus(e.target.value as any)} className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white outline-none">
                 <option value="Pending">Pending</option>
                 <option value="Completed">Completed</option>
                 <option value="Rescheduled">Rescheduled</option>
@@ -1364,8 +1084,8 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
           </div>
         </div>
 
-        {/* EXECUTIVE & VISIT SUMMARY CARD (PLACED BELOW CARD 7 AS REQUESTED) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl relative overflow-hidden space-y-3.5">
+        {/* EXECUTIVE & VISIT SUMMARY CARD */}
+        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl relative overflow-hidden space-y-3.5">
           <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative">
@@ -1376,150 +1096,39 @@ export const CustomerVisitManagementView: React.FC<CustomerVisitManagementViewPr
               <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2 mt-0.5">
                 <span>SINGLE-PAGE VISIT ENTRY FORM</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Complete the cards and save the visit in your CRM • ID:{' '}
-                <span className="font-mono text-sky-300 font-bold">{visitId}</span>
-              </p>
+              <p className="text-xs text-slate-400 mt-1">Complete the cards and save the visit • ID: <span className="font-mono text-sky-300 font-bold">{visitId}</span></p>
             </div>
-
-            {/* Live timestamp & Executive */}
             <div className="flex items-center gap-2 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 text-xs font-mono self-start sm:self-auto">
               <Clock className="w-4 h-4 text-sky-400 shrink-0" />
               <div>
-                <span className="text-white font-bold block">
-                  {currentDateTime.dateStr} • {currentDateTime.timeStr}
-                </span>
+                <span className="text-white font-bold block">{currentDateTime.dateStr} • {currentDateTime.timeStr}</span>
                 <span className="text-[10px] text-slate-400">Executive: {assignedSalesperson}</span>
               </div>
             </div>
           </div>
-
-          {/* Assigned Salesperson (ADDED IN THIS CARD ONLY) */}
-          <div className="pt-2 border-t border-slate-800/80">
-            <label className="font-bold text-slate-200 block mb-1 text-xs">
-              Assigned Salesperson *
-            </label>
-            <select
-              value={assignedSalesperson}
-              onChange={(e) => setAssignedSalesperson(e.target.value)}
-              className="w-full bg-slate-950 border border-sky-500 focus:border-sky-400 rounded-xl px-3.5 py-2.5 text-white outline-none text-xs font-medium transition"
-            >
-              <option value="Raviraja Admin (ADMIN - All Territories)">
-                Raviraja Admin (ADMIN - All Territories)
-              </option>
-              <option value="nagarjuna (Executive - Telangana)">
-                nagarjuna (Executive - Telangana)
-              </option>
-              <option value="Rajeshbhai Patel (Senior Executive - Gujarat)">
-                Rajeshbhai Patel (Senior Executive - Gujarat)
-              </option>
-              <option value="Harika (Sales Rep - Hyderabad)">
-                Harika (Sales Rep - Hyderabad)
-              </option>
-              <option value="Suresh Kumar (Field Manager - South)">
-                Suresh Kumar (Field Manager - South)
-              </option>
-              <option value="Venu (Field Executive - LB Nagar)">
-                Venu (Field Executive - LB Nagar)
-              </option>
-              <option value="Ravi (Managing Director)">
-                Ravi (Managing Director)
-              </option>
-              {user?.displayName &&
-                ![
-                  'Raviraja Admin',
-                  'nagarjuna',
-                  'Rajeshbhai Patel',
-                  'Harika',
-                  'Suresh Kumar',
-                  'Venu',
-                  'Ravi',
-                ].some((n) => user.displayName?.includes(n)) && (
-                  <option value={user.displayName}>{user.displayName}</option>
-                )}
-            </select>
-          </div>
-
-          {/* Existing Company Auto-Fill Shortcut */}
-          {existingCompanies.length > 0 && (
-            <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-sky-400" />
-                <span>Auto-fill from previous records:</span>
-              </span>
-              <select
-                onChange={(e) => {
-                  const found = existingCompanies.find((c) => c.companyName === e.target.value);
-                  if (found) handleSelectExistingCompany(found);
-                }}
-                defaultValue=""
-                className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:border-sky-500 outline-none"
-              >
-                <option value="" disabled>
-                  Select previous company to auto-fill...
-                </option>
-                {existingCompanies.map((c) => (
-                  <option key={c.id} value={c.companyName}>
-                    {c.companyName} ({c.city})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
 
-        {/* CARD 8 / BOTTOM BAR: SAVE VISIT */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="text-slate-400 hover:text-white font-bold cursor-pointer px-3 py-2 text-xs flex items-center gap-1.5 transition"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Clear Form</span>
-          </button>
-
-          {/* Big Primary Action: SAVE VISIT */}
-          <button
-            type="submit"
-            className="w-full sm:w-auto px-10 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm sm:text-base shadow-xl shadow-emerald-950/50 transition active:scale-95 cursor-pointer flex items-center justify-center gap-2.5"
-          >
-            <CheckCircle2 className="w-5 h-5 text-white" />
-            <span>SAVE VISIT</span>
-          </button>
+        {/* BOTTOM BAR: SAVE VISIT */}
+        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <button type="button" onClick={resetForm} className="text-slate-400 hover:text-white font-bold cursor-pointer px-3 py-2 text-xs flex items-center gap-1.5 transition"><RotateCcw className="w-3.5 h-3.5" /><span>Clear Form</span></button>
+          <button type="submit" className="w-full sm:w-auto px-10 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm sm:text-base shadow-xl shadow-emerald-950/50 transition active:scale-95 flex items-center justify-center gap-2.5"><CheckCircle2 className="w-5 h-5 text-white" /><span>SAVE VISIT</span></button>
         </div>
       </form>
 
-      {/* FULLSCREEN PHOTO LIGHTBOX MODAL */}
-      {selectedPhotoModal &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn"
-            onClick={() => setSelectedPhotoModal(null)}
-          >
-            <div className="relative max-w-xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden p-3 space-y-2">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-800">
-                <span className="text-xs font-bold text-white">Attached Visit Media</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPhotoModal(null)}
-                  className="p-1 rounded-full bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="max-h-[70vh] flex items-center justify-center bg-black rounded-xl overflow-hidden">
-                <img
-                  src={selectedPhotoModal}
-                  alt="Visit media fullsize"
-                  className="max-h-[70vh] w-auto max-w-full object-contain"
-                />
-              </div>
+      {selectedPhotoModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn" onClick={() => setSelectedPhotoModal(null)}>
+          <div className="relative max-w-xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden p-3 space-y-2">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+              <span className="text-xs font-bold text-white">Attached Visit Media</span>
+              <button type="button" onClick={() => setSelectedPhotoModal(null)} className="p-1 rounded-full bg-slate-800 text-slate-300 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
-          </div>,
-          document.body
-        )}
+            <div className="max-h-[70vh] flex items-center justify-center bg-black rounded-xl overflow-hidden">
+              <img src={selectedPhotoModal} alt="Visit media fullsize" className="max-h-[70vh] w-auto max-w-full object-contain" />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

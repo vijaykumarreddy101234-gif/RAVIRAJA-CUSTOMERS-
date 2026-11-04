@@ -18,7 +18,7 @@ export type UPVCBrand = 'S CRAFT' | 'SMART' | 'OTHERS' | string;
 export interface AdditionalContact {
   id: string;
   name: string;
-  designation: string; // e.g. Co-Director, Partner, Workshop Supervisor, Production Head, Purchase Manager, Site Supervisor, Accounts
+  designation: string;
   mobileNumber: string;
   notes?: string;
 }
@@ -39,114 +39,81 @@ export interface OtherOpinionCard {
 
 export interface VisitPhoto {
   id: string;
-  dataUrl: string; // Base64 compressed image data URL
-  caption?: string; // Optional user label, e.g. "Workshop Front", "Sample Corner", "Visiting Card"
+  dataUrl: string;
+  caption?: string;
   capturedAt?: string;
 }
 
 export interface CustomerVisit {
   id: string;
   salesExecutiveName: string;
-  customerVisitDate: string; // YYYY-MM-DD
-  customerVisitTime?: string; // e.g. 10:45 AM
-  submittedAt?: string; // Formatted date and time of submission
-  customerName: string; // Primary Owner / Customer contact name
-  contactDesignation?: string; // e.g. Owner / Proprietor, Managing Director (MD), Partner, Workshop Supervisor, etc.
+  customerVisitDate: string;
+  customerVisitTime?: string;
+  submittedAt?: string;
+  customerName: string;
+  contactDesignation?: string;
   mobileNumber: string;
-  additionalContacts?: AdditionalContact[]; // Additional directors, supervisors, partners running unit
+  additionalContacts?: AdditionalContact[];
   companyName: string;
   customerType: CustomerType;
-  gstNumber?: string; // GSTIN e.g. 24AAAAA0000A1Z5
+  gstNumber?: string;
   state: string;
   district: string;
   city: string;
   customerAddress: string;
-
-  // GPS Tagging & Location Link
-  gpsLocationLink?: string; // e.g. https://www.google.com/maps?q=23.022505,72.571362
+  gpsLocationLink?: string;
   latitude?: number;
   longitude?: number;
-  locationAccuracy?: number; // Accuracy in meters
-  gpsCapturedAt?: string; // Timestamp when GPS was tagged
-
-  // Brand & Series distinction
-  brand?: UPVCBrand; // 'S CRAFT' | 'SMART' | 'OTHERS' (or custom name)
-  interestedSeries?: string; // e.g. '60mm Casement Series (Windows & Doors)'
-  interestedBrand: string; // Combined / Backward-compatible description
-
-  currentBrand: string; // Competitor uPVC brand e.g. Kommerling, Prominance, Veka (joined string)
-  currentBrands?: string[]; // Multiple competitor brands used simultaneously (e.g. 3 to 5 brands)
-  quantityPerMonth: string; // e.g. "5 MT / Month", "1,200 Bars", "25 Tons"
+  locationAccuracy?: number;
+  gpsCapturedAt?: string;
+  brand?: UPVCBrand;
+  interestedSeries?: string;
+  interestedBrand: string;
+  currentBrand: string;
+  currentBrands?: string[];
+  quantityPerMonth: string;
   piSent: PISentStatus;
   leadStatus: LeadStatus;
-  followUpDate: string; // YYYY-MM-DD
+  followUpDate: string;
+  followUpRequired?: 'Yes' | 'No';
+  followUpDiscussion?: string;
+  followUpStatus?: 'Pending' | 'Completed' | 'Rescheduled' | 'Cancelled';
+  branchLocations?: Array<{ id: string; name: string; address: string; city: string; state: string }>;
   visitRemarks: string;
-
-  // Conversation Dialogue Logs & Custom Opinion Cards
   conversationLogs?: ConversationLog[];
   otherOpinionCards?: OtherOpinionCard[];
-
-  // Multiple Visit & Workshop Photos
   photos?: VisitPhoto[];
-
   profileColor?: string;
   executiveEmail?: string;
   userId?: string;
-
-  // Customer Visit Management Module Fields
-  customerId?: string; // Unique Customer / Enterprise ID e.g. CUST-8219
-  visitId?: string; // Unique Visit ID e.g. VST-2026-0042
-  visitingCardPhoto?: string; // Base64 data URL for uploaded visiting card
+  customerId?: string;
+  visitId?: string;
+  visitingCardPhoto?: string;
   whatsappNumber?: string;
   emailAddress?: string;
   pinCode?: string;
-  branchLocations?: Array<{
-    id: string;
-    name: string;
-    address: string;
-    city: string;
-    state: string;
-  }>;
 
-  // Box 4: Conversion Card details
+  // New specific cards from screenshots
   conversionCard?: {
-    leadStatus: LeadStatus;
-    productsDiscussed: string;
-    targetBrand: string;
-    expectedOrderDate?: string;
-    probability?: string;
-    dealValue?: string;
-    discussionNotes?: string;
+    status: LeadStatus;
+    targetBrand: UPVCBrand;
+    expectedTonnage: string;
+    dealValue: string;
+    probability: string;
   };
-
-  // Box 5: Customer Opinion Card details
   opinionCard?: {
-    customerFeedback: string;
-    priceOpinion?: string;
-    qualityOpinion?: string;
-    deliveryOpinion?: string;
-    competitorRemarks?: string;
+    pricingOpinion: string;
+    qualityChambers: string;
+    competitorOpinion: string;
+    customerInterestSeries: string;
+    qualityWallThickness: string;
+    priceCreditTerms: string;
   };
 
-  // Box 8: Next Follow-Up details
-  followUpRequired?: 'Yes' | 'No';
-  followUpTime?: string;
-  followUpPurpose?: string;
-  followUpDiscussion?: string;
-  assignedSalesperson?: string;
-  followUpStatus?: 'Pending' | 'Completed' | 'Rescheduled' | 'Cancelled';
+  conversionRemarks?: string;
+  opinionRemarks?: string;
 
+  assignedSalesperson?: string;
   createdAt: number;
   updatedAt?: number;
-}
-
-export interface VisitFilterOptions {
-  search: string;
-  brand?: string;
-  state: string;
-  leadStatus: string;
-  customerType: string;
-  piSent: string;
-  startDate: string;
-  endDate: string;
 }

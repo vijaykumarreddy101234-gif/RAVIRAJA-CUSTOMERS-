@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Flame, Zap, Snowflake, Trophy, Phone, MessageCircle, Building, User } from 'lucide-react';
+import { Flame, Zap, Snowflake, Trophy, Phone, MessageCircle, Building, User, RotateCcw } from 'lucide-react';
 import { CustomerVisit, LeadStatus } from '../types/customerVisit';
 
 interface FabricatorLeadsViewProps {
@@ -88,15 +88,17 @@ export const FabricatorLeadsView: React.FC<FabricatorLeadsViewProps> = ({
         </p>
       </div>
 
-      {/* Simple, Non-Clumsy Sales Executive Selector Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-sm">
-        <div className="flex items-center gap-2.5 text-xs">
-          <User className="w-4 h-4 text-sky-400 shrink-0" />
-          <span className="font-bold text-slate-300">Sales Executive:</span>
+      {/* Simplified, Non-Clumsy Sales Executive Selector Bar */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-sky-400 shrink-0" />
+            <span className="font-bold text-slate-300">Sales Executive:</span>
+          </div>
           <select
             value={selectedExecutive}
             onChange={(e) => setSelectedExecutive(e.target.value)}
-            className="bg-slate-950 border border-slate-800 text-white text-xs rounded-xl px-3 py-2 focus:border-sky-500 outline-none font-medium cursor-pointer"
+            className="bg-slate-950 border border-slate-800 text-white text-xs rounded-xl px-4 py-2 focus:border-sky-500 outline-none font-bold cursor-pointer transition-all"
           >
             <option value="All">All Executives ({visits.length})</option>
             {uniqueExecutives.map((exec) => {
@@ -110,20 +112,16 @@ export const FabricatorLeadsView: React.FC<FabricatorLeadsViewProps> = ({
           </select>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto text-xs">
-          {selectedExecutive !== 'All' && (
-            <button
-              type="button"
-              onClick={() => setSelectedExecutive('All')}
-              className="text-sky-400 hover:text-sky-300 font-bold hover:underline cursor-pointer"
-            >
-              Reset to All
-            </button>
-          )}
-          <span className="text-slate-400 font-mono text-[11px]">
-            Showing {executiveFilteredVisits.length} of {visits.length} leads
-          </span>
-        </div>
+        {selectedExecutive !== 'All' && (
+          <button
+            type="button"
+            onClick={() => setSelectedExecutive('All')}
+            className="text-[10px] font-bold text-sky-400 hover:text-white flex items-center gap-1 transition bg-sky-950/40 border border-sky-800/40 px-3 py-1.5 rounded-xl"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>Reset to All</span>
+          </button>
+        )}
       </div>
 
       <div className="space-y-4">

@@ -5,272 +5,135 @@
       "description": "SCRAFT uPVC profile customer visit and fabricator sales entry record",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique record identifier"
-        },
-        "salesExecutiveName": {
-          "type": "string",
-          "description": "Sales executive full name"
-        },
-        "customerVisitDate": {
-          "type": "string",
-          "description": "Date of customer visit (YYYY-MM-DD)"
-        },
-        "customerName": {
-          "type": "string",
-          "description": "Customer contact person name"
-        },
-        "mobileNumber": {
-          "type": "string",
-          "description": "Customer mobile contact number"
-        },
-        "companyName": {
-          "type": "string",
-          "description": "Company or fabricator enterprise name"
-        },
-        "gstNumber": {
-          "type": "string",
-          "description": "Customer 15-digit GSTIN tax number"
-        },
-        "customerType": {
-          "type": "string",
-          "description": "Type of customer (Fabricator, Distributor, Dealer, Architect, Builder)"
-        },
-        "state": {
-          "type": "string",
-          "description": "Indian state"
-        },
-        "district": {
-          "type": "string",
-          "description": "District or region"
-        },
-        "city": {
-          "type": "string",
-          "description": "City or industrial belt"
-        },
-        "customerAddress": {
-          "type": "string",
-          "description": "Full street address"
-        },
-        "gpsLocationLink": {
-          "type": "string",
-          "description": "Google Maps GPS tag link (https://www.google.com/maps?q=lat,lng)"
-        },
-        "latitude": {
-          "type": "number",
-          "description": "GPS latitude coordinate"
-        },
-        "longitude": {
-          "type": "number",
-          "description": "GPS longitude coordinate"
-        },
-        "brand": {
-          "type": "string",
-          "description": "uPVC Brand (S CRAFT, SMART, OTHERS)"
-        },
-        "interestedSeries": {
-          "type": "string",
-          "description": "uPVC Profile Series (e.g. 60mm Casement, 2.5 Track Sliding, 3 Track Sliding)"
-        },
-        "interestedBrand": {
-          "type": "string",
-          "description": "Interested uPVC brand and series combined description"
-        },
-        "currentBrand": {
-          "type": "string",
-          "description": "Current brand used by fabricator"
-        },
-        "quantityPerMonth": {
-          "type": "string",
-          "description": "Monthly volume in MT or bars"
-        },
-        "piSent": {
-          "type": "string",
-          "description": "Proforma invoice status"
-        },
-        "leadStatus": {
-          "type": "string",
-          "description": "Lead stage (Hot, Warm, Cold, Won / Closed, Lost)"
-        },
-        "followUpDate": {
-          "type": "string",
-          "description": "Follow-up date"
-        },
-        "visitRemarks": {
-          "type": "string",
-          "description": "Visit remarks and notes"
-        },
-        "executiveEmail": {
-          "type": "string",
-          "description": "Email of the sales executive"
-        },
-        "userId": {
-          "type": "string",
-          "description": "Authenticated user ID of creator/assignee"
-        },
-        "photos": {
-          "type": "array",
-          "description": "Attached workshop, product sample, and fabricator photos"
-        },
-        "customerId": {
-          "type": "string",
-          "description": "Unique customer / company ID"
-        },
-        "visitId": {
-          "type": "string",
-          "description": "Unique visit ID"
-        },
-        "visitingCardPhoto": {
-          "type": "string",
-          "description": "Uploaded visiting card image"
-        },
-        "pinCode": {
-          "type": "string",
-          "description": "Postal PIN Code"
-        },
-        "whatsappNumber": {
-          "type": "string",
-          "description": "Customer WhatsApp contact number"
-        },
-        "emailAddress": {
-          "type": "string",
-          "description": "Customer email contact"
-        },
-        "createdAt": {
-          "type": "number",
-          "description": "Timestamp of creation"
-        },
-        "updatedAt": {
-          "type": "number",
-          "description": "Timestamp of update"
-        }
+        "id": { "type": "string" },
+        "salesExecutiveName": { "type": "string" },
+        "customerVisitDate": { "type": "string" },
+        "customerName": { "type": "string" },
+        "mobileNumber": { "type": "string" },
+        "companyName": { "type": "string" },
+        "gstNumber": { "type": "string" },
+        "customerType": { "type": "string" },
+        "state": { "type": "string" },
+        "district": { "type": "string" },
+        "city": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "gpsLocationLink": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "brand": { "type": "string" },
+        "interestedSeries": { "type": "string" },
+        "interestedBrand": { "type": "string" },
+        "currentBrand": { "type": "string" },
+        "quantityPerMonth": { "type": "string" },
+        "piSent": { "type": "string" },
+        "leadStatus": { "type": "string" },
+        "followUpDate": { "type": "string" },
+        "visitRemarks": { "type": "string" },
+        "executiveEmail": { "type": "string" },
+        "userId": { "type": "string" },
+        "photos": { "type": "array" },
+        "customerId": { "type": "string" },
+        "visitId": { "type": "string" },
+        "visitingCardPhoto": { "type": "string" },
+        "pinCode": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "emailAddress": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
       },
       "required": ["customerName", "mobileNumber", "customerVisitDate"]
     },
     "SalesEmployee": {
       "title": "SalesEmployee",
-      "description": "SCRAFT sales executive or administrator profile with territory and role permissions",
+      "description": "SCRAFT sales executive or administrator profile",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Employee ID or Auth UID"
-        },
-        "name": {
-          "type": "string",
-          "description": "Full name of the sales employee"
-        },
-        "mobileNumber": {
-          "type": "string",
-          "description": "Registered Indian mobile number (+91)"
-        },
-        "employeeCode": {
-          "type": "string",
-          "description": "Official SCRAFT employee code (e.g. SC-EMP-436)"
-        },
-        "designation": {
-          "type": "string",
-          "description": "Job designation"
-        },
-        "assignedState": {
-          "type": "string",
-          "description": "Assigned sales state"
-        },
-        "assignedDistrict": {
-          "type": "string",
-          "description": "Assigned sales district"
-        },
-        "joiningDate": {
-          "type": "string",
-          "description": "Joining date (YYYY-MM-DD)"
-        },
-        "status": {
-          "type": "string",
-          "description": "Account status (Active, Inactive, Resigned)"
-        },
-        "role": {
-          "type": "string",
-          "description": "System role (admin, sales)"
-        },
-        "email": {
-          "type": "string",
-          "description": "Corporate email address"
-        },
-        "createdAt": {
-          "type": "number",
-          "description": "Timestamp of creation"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "mobileNumber": { "type": "string" },
+        "employeeCode": { "type": "string" },
+        "designation": { "type": "string" },
+        "assignedState": { "type": "string" },
+        "assignedDistrict": { "type": "string" },
+        "joiningDate": { "type": "string" },
+        "status": { "type": "string" },
+        "role": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "number" }
       },
       "required": ["name", "mobileNumber", "employeeCode", "role", "status"]
     },
     "UPVCWastageProject": {
       "title": "UPVCWastageProject",
-      "description": "uPVC profile cutting optimization project with wastage calculation and bar diagrams",
+      "description": "uPVC profile cutting optimization project",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique cutting project identifier"
-        },
-        "projectName": {
-          "type": "string",
-          "description": "Project title (e.g. 3-Track Sliding Windows Block-A)"
-        },
-        "fabricatorName": {
-          "type": "string",
-          "description": "Fabricator workshop name"
-        },
-        "stockLengthMm": {
-          "type": "number",
-          "description": "Standard stock profile bar length in mm (default 6000mm)"
-        },
-        "sawKerfMm": {
-          "type": "number",
-          "description": "Saw blade cutting loss in mm"
-        },
-        "profileWeightKgPerM": {
-          "type": "number",
-          "description": "Kg weight per meter for cost calculation"
-        },
-        "costPerKg": {
-          "type": "number",
-          "description": "Rate in INR per kg"
-        },
-        "minUsableOffcutMm": {
-          "type": "number",
-          "description": "Minimum length for reusable offcuts"
-        },
-        "createdAt": {
-          "type": "number",
-          "description": "Timestamp of project creation"
-        },
-        "updatedAt": {
-          "type": "number",
-          "description": "Timestamp of last modification"
-        }
+        "id": { "type": "string" },
+        "projectName": { "type": "string" },
+        "fabricatorName": { "type": "string" },
+        "stockLengthMm": { "type": "number" },
+        "sawKerfMm": { "type": "number" },
+        "profileWeightKgPerM": { "type": "number" },
+        "costPerKg": { "type": "number" },
+        "minUsableOffcutMm": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
       },
       "required": ["id", "projectName"]
+    },
+    "loginChallenges": {
+      "title": "LoginChallenge",
+      "description": "Stateful 2FA login challenge tracking",
+      "type": "object",
+      "properties": {
+        "challengeId": { "type": "string" },
+        "userId": { "type": "string" },
+        "mobile": { "type": "string" },
+        "email": { "type": "string" },
+        "msg91RequestId": { "type": "string" },
+        "mobileVerified": { "type": "boolean" },
+        "emailVerified": { "type": "boolean" },
+        "emailOtpHash": { "type": "string" },
+        "emailOtpExpiresAt": { "type": "number" },
+        "attempts": { "type": "number" },
+        "expiresAt": { "type": "number" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "sessions": {
+      "title": "Session",
+      "description": "Server-side authenticated session",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "expiresAt": { "type": "number" },
+        "revokedAt": { "type": "number" }
+      }
     }
   },
   "firestore": {
     "/customer_visits/{visitId}": {
-      "schema": {
-        "$ref": "#/entities/CustomerVisit"
-      },
-      "description": "Collection of customer visits and uPVC fabricator entries"
+      "schema": { "$ref": "#/entities/CustomerVisit" },
+      "description": "Collection of customer visits"
     },
     "/sales_employees/{empId}": {
-      "schema": {
-        "$ref": "#/entities/SalesEmployee"
-      },
-      "description": "Directory of SCRAFT sales personnel, roles, territories, and account statuses"
+      "schema": { "$ref": "#/entities/SalesEmployee" },
+      "description": "Directory of sales personnel"
     },
     "/upvc_wastage_projects/{projectId}": {
-      "schema": {
-        "$ref": "#/entities/UPVCWastageProject"
-      },
-      "description": "Collection of uPVC profile cutting optimization and scrap minimization projects"
+      "schema": { "$ref": "#/entities/UPVCWastageProject" },
+      "description": "Cutting optimization projects"
+    },
+    "/login_challenges/{challengeId}": {
+      "schema": { "$ref": "#/entities/loginChallenges" },
+      "description": "Active 2FA challenges"
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/sessions" },
+      "description": "Active user sessions"
     }
   }
 }

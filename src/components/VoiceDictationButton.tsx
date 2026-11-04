@@ -6,6 +6,7 @@ interface VoiceDictationButtonProps {
   className?: string;
   title?: string;
   size?: 'sm' | 'md';
+  variant?: 'default' | 'ghost';
 }
 
 // Web Speech API interface definitions
@@ -18,6 +19,7 @@ export const VoiceDictationButton: React.FC<VoiceDictationButtonProps> = ({
   className = '',
   title = 'Click to dictate via microphone (Voice-to-Text)',
   size = 'sm',
+  variant = 'default',
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export const VoiceDictationButton: React.FC<VoiceDictationButtonProps> = ({
     return () => {
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.abort();
+          recognitionRef.current.stop();
         } catch {
           // ignore
         }
@@ -37,13 +39,12 @@ export const VoiceDictationButton: React.FC<VoiceDictationButtonProps> = ({
   }, []);
 
   const toggleListening = () => {
-    // Check Web Speech API availability
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setStatusMsg('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
-      setTimeout(() => setStatusMsg(null), 4000);
+      setStatusMsg('Speech recognition not supported in browser');
+      setTimeout(() => setStatusMsg(null), 3000);
       return;
     }
 
@@ -63,14 +64,13 @@ export const VoiceDictationButton: React.FC<VoiceDictationButtonProps> = ({
     try {
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
-
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = 'en-IN'; // Indian English preset with Hindi/Regional phonetic tolerance
+      recognition.lang = 'en-IN';
 
       recognition.onstart = () => {
         setIsListening(true);
-        setStatusMsg('Listening... speak now');
+        setStatusMsg('Listening...');
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -86,14 +86,8 @@ export const VoiceDictationButton: React.FC<VoiceDictationButtonProps> = ({
 
       recognition.onerror = (event: any) => {
         setIsListening(false);
-        if (event.error === 'not-allowed') {
-          setStatusMsg('Microphone blocked. Please allow mic permission.');
-        } else if (event.error === 'no-speech') {
-          setStatusMsg('No speech detected. Please try speaking again.');
-        } else {
-          setStatusMsg(`Mic error: ${event.error || 'speech failed'}`);
-        }
-        setTimeout(() => setStatusMsg(null), 4000);
+        setStatusMsg(event.error === 'not-allowed' ? 'Mic permission blocked' : 'Voice failed');
+        setTimeout(() => setStatusMsg(null), 3000);
       };
 
       recognition.onend = () => {
@@ -101,34 +95,35 @@ export const VoiceDictationButton: React.FC<VoiceDictationButtonProps> = ({
       };
 
       recognition.start();
-    } catch (err: any) {
-      console.warn('Speech recognition initiation error:', err);
+    } catch {
       setIsListening(false);
-      setStatusMsg('Could not start microphone. Check browser permissions.');
-      setTimeout(() => setStatusMsg(null), 4000);
     }
   };
 
   const isSmall = size === 'sm';
+
+  const defaultClasses = isListening
+    ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/50 animate-pulse border border-rose-400'
+    : 'bg-slate-950/80 hover:bg-slate-800 text-slate-400 hover:text-sky-300 border border-slate-800';
+
+  const ghostClasses = isListening
+    ? 'text-rose-400 animate-pulse scale-110'
+    : 'text-slate-400 hover:text-white transition-colors';
 
   return (
     <div className="relative inline-flex items-center">
       <button
         type="button"
         onClick={toggleListening}
-        className={`relative inline-flex items-center justify-center rounded-xl transition cursor-pointer active:scale-95 ${
-          isSmall ? 'p-1.5 text-xs' : 'p-2 text-sm'
-        } ${
-          isListening
-            ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/50 animate-pulse border border-rose-400 ring-2 ring-rose-400/50'
-            : 'bg-slate-950/80 hover:bg-slate-800 text-slate-400 hover:text-sky-300 border border-slate-800 hover:border-sky-500/50'
-        } ${className}`}
+        className={`relative inline-flex items-center justify-center rounded-xl transition cursor-pointer active:scale-90 ${
+          isSmall ? 'p-1.5' : 'p-2'
+        } ${variant === 'ghost' ? ghostClasses : defaultClasses} ${className}`}
         title={isListening ? 'Tap to stop recording' : title}
       >
         {isListening ? (
-          <MicOff className={`${isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-white`} />
+          <MicOff className={`${isSmall ? 'w-4 h-4' : 'w-5 h-5'} text-rose-400`} />
         ) : (
-          <Mic className={`${isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+          <Mic className={`${isSmall ? 'w-4 h-4' : 'w-5 h-5'}`} />
         )}
       </button>
 

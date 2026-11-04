@@ -516,6 +516,28 @@ const ModalContent: React.FC<ModalContentProps> = ({
           </div>
         </div>
 
+        {/* Card 3: Conversion Discussion */}
+        {visit.conversionRemarks && (
+          <div className="p-3.5 rounded-2xl bg-[#020712] border border-amber-500/30 space-y-1.5 text-xs">
+            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-amber-400" />
+              <span>Conversion Discussion</span>
+            </span>
+            <p className="text-slate-200 text-xs whitespace-pre-wrap">{visit.conversionRemarks}</p>
+          </div>
+        )}
+
+        {/* Card 4: Customer Opinion & Requirements */}
+        {visit.opinionRemarks && (
+          <div className="p-3.5 rounded-2xl bg-[#020712] border border-sky-500/30 space-y-1.5 text-xs">
+            <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+              <MessageCircle className="w-3.5 h-3.5 text-sky-400" />
+              <span>Customer Opinion & Requirements</span>
+            </span>
+            <p className="text-slate-200 text-xs whitespace-pre-wrap">{visit.opinionRemarks}</p>
+          </div>
+        )}
+
         {/* Conversation Dialogue Logs View */}
         {visit.conversationLogs && visit.conversationLogs.length > 0 && (
           <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5 text-xs">

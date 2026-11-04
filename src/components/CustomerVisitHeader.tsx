@@ -20,12 +20,14 @@ import {
   Sparkles,
   Link as LinkIcon,
   ShieldAlert,
+  Zap,
 } from 'lucide-react';
 import { AdminAlertService, SecurityAlert } from '../services/adminAlerts';
 
 interface CustomerVisitHeaderProps {
   user: AppUser | null;
   onLogin: () => void;
+  onOpenDemoLogin?: () => void;
   onLogout: () => void;
   isLoggingIn: boolean;
   onExportExcel: () => void;
@@ -122,6 +124,7 @@ function compressImageToDataUrl(file: File, maxDim: number = 256): Promise<strin
 export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
   user,
   onLogin,
+  onOpenDemoLogin,
   onLogout,
   isLoggingIn,
   onExportExcel,
@@ -450,7 +453,18 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
             </div>
           )}
 
-          {/* Google / Gmail Connected Profile */}
+          {/* Demo Logins & Mobile OTP Action Button */}
+          <button
+            type="button"
+            onClick={onOpenDemoLogin || onLogin}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/50 text-amber-300 text-xs font-bold transition active:scale-95 shadow-sm"
+            title="1-Click Demo Logins & Mobile OTP"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Demo Logins</span>
+          </button>
+
+          {/* Profile / Connected Status */}
           {user ? (
             <div className="relative">
               <button
@@ -470,7 +484,7 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                   </div>
                 )}
                 <span className="hidden md:inline text-[11px] font-medium text-slate-200 max-w-[120px] truncate pr-1">
-                  {user.email}
+                  {user.displayName || user.email}
                 </span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
@@ -495,6 +509,19 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
                       <span>Live Synced Across Devices</span>
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      if (onOpenDemoLogin) onOpenDemoLogin();
+                      else onLogin();
+                    }}
+                    className="w-full text-left px-2 py-1.5 rounded-xl hover:bg-slate-700 text-amber-300 hover:text-amber-200 flex items-center gap-2 transition mb-1 text-xs font-bold"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Switch User / Demo Logins</span>
+                  </button>
 
                   <button
                     type="button"
@@ -539,12 +566,12 @@ export const CustomerVisitHeader: React.FC<CustomerVisitHeaderProps> = ({
           ) : (
             <button
               type="button"
-              onClick={onLogin}
+              onClick={onOpenDemoLogin || onLogin}
               disabled={isLoggingIn}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-sm transition active:scale-95 disabled:opacity-60"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black shadow-md transition active:scale-95 disabled:opacity-60"
             >
-              <Cloud className="w-3.5 h-3.5" />
-              <span>{isLoggingIn ? 'Connecting...' : 'Connect'}</span>
+              <Zap className="w-3.5 h-3.5" />
+              <span>Demo Login / OTP</span>
             </button>
           )}
         </div>

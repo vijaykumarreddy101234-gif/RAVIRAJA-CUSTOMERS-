@@ -34,8 +34,8 @@ import {
   AdditionalContact,
   OtherOpinionCard,
   VisitPhoto,
+  UPVCBrand,
 } from '../types/customerVisit';
-import { AppUser } from '../services/firebaseAuth';
 import { VoiceDictationButton } from './VoiceDictationButton';
 import {
   INDIAN_STATES,
@@ -48,7 +48,8 @@ import {
 interface CustomerVisitFormProps {
   onSubmitVisit: (visit: CustomerVisit) => void;
   defaultExecutiveName: string;
-  user?: AppUser | null;
+  user?: any | null;
+  employees?: any[];
 }
 
 const COMMON_OPINION_PRESETS = [
@@ -113,6 +114,7 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
   onSubmitVisit,
   defaultExecutiveName,
   user,
+  employees = [],
 }) => {
   // Live Date and Time (auto-stamped on submit, no manual schedule needed)
   const [currentDateTime, setCurrentDateTime] = useState({
@@ -196,9 +198,27 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
     new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().split('T')[0]
   );
 
+  // Box 4: Conversion Card
+  const [convStatus, setConvStatus] = useState<LeadStatus>('Hot');
+  const [convTargetBrand, setConvTargetBrand] = useState<UPVCBrand>('S CRAFT');
+  const [convExpectedTonnage, setConvExpectedTonnage] = useState('');
+  const [convDealValue, setConvDealValue] = useState('');
+  const [convProbability, setConvProbability] = useState('80%');
+
+  // Box 5: Opinion Card
+  const [opPricing, setOpPricing] = useState('');
+  const [opQuality, setOpQuality] = useState('');
+  const [opCompetitor, setOpCompetitor] = useState('');
+  const [opInterest, setOpInterest] = useState('');
+  const [opThickness, setOpThickness] = useState('');
+  const [opTerms, setOpTerms] = useState('');
+
   // Conversation & Other Opinion Cards
   const [conversation, setConversation] = useState('');
   const [otherOpinionCards, setOtherOpinionCards] = useState<OtherOpinionCard[]>([]);
+
+  // Assigned Salesperson
+  const [assignedSalesperson, setAssignedSalesperson] = useState(defaultExecutiveName);
 
   // Multiple Visit & Workshop Photos
   const [photos, setPhotos] = useState<VisitPhoto[]>([]);
@@ -426,12 +446,29 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
       additionalContacts: validPersons.length > 0 ? validPersons : undefined,
       otherOpinionCards: validOpinions.length > 0 ? validOpinions : undefined,
       photos: photos.length > 0 ? photos : undefined,
+      
+      conversionCard: {
+        status: convStatus,
+        targetBrand: convTargetBrand,
+        expectedTonnage: convExpectedTonnage,
+        dealValue: convDealValue,
+        probability: convProbability
+      },
+      opinionCard: {
+        pricingOpinion: opPricing,
+        qualityChambers: opQuality,
+        competitorOpinion: opCompetitor,
+        customerInterestSeries: opInterest,
+        qualityWallThickness: opThickness,
+        priceCreditTerms: opTerms
+      },
+      assignedSalesperson,
       createdAt: now.getTime(),
     };
 
     onSubmitVisit(newVisit);
 
-    // Reset customer-specific inputs for the next visit entry
+    // Reset customer-specific inputs
     setCustomerName('');
     setMobileNumber('');
     setCompanyName('');
@@ -444,6 +481,16 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
     setPhotos([]);
     setSelectedCompetitors([]);
     setAdditionalContacts([]);
+    
+    setConvExpectedTonnage('');
+    setConvDealValue('');
+    setOpPricing('');
+    setOpQuality('');
+    setOpCompetitor('');
+    setOpInterest('');
+    setOpThickness('');
+    setOpTerms('');
+
     captureGpsLocation();
   };
 
@@ -462,12 +509,12 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
           </div>
         )}
 
-        {/* SECTION 1: CUSTOMER & FABRICATOR PROFILE */}
+        {/* SECTION 1: CUSTOMER / COMPANY DETAILS */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
             <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
               <Building className="w-4 h-4 text-sky-400" />
-              <span>1. Customer & Fabricator Details</span>
+              <span>CUSTOMER / COMPANY DETAILS</span>
             </h3>
             <span className="text-[11px] text-slate-400 font-medium">Step 1 of 4</span>
           </div>
@@ -775,7 +822,7 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
           </div>
         </div>
 
-        {/* SECTION 3: uPVC PRODUCTS & COMPETITORS (Series removed as requested) */}
+        {/* SECTION 3: uPVC PRODUCTS & COMPETITORS */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
             <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
@@ -821,61 +868,60 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
               />
             </div>
           </div>
+        </div>
 
-          {/* Competitor Brands in Use */}
-          <div className="text-xs space-y-2">
-            <label className="text-slate-300 font-bold block">
-              Current Competitor Brands Used by Fabricator
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                'Kommerling',
-                'Prominance',
-                'NCL VEKA',
-                'Aluplast',
-                'Deceuninck',
-                'Plastone',
-                'Simta Astrix',
-                'Eurocell',
-              ].map((comp) => {
-                const isSelected = selectedCompetitors.includes(comp);
-                return (
-                  <button
-                    key={comp}
-                    type="button"
-                    onClick={() => toggleCompetitor(comp)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition border active:scale-95 ${
-                      isSelected
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-bold'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {isSelected ? '✓ ' : '+ '}
-                    {comp}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom competitor input */}
-            <div className="flex gap-2 pt-1">
-              <input
-                type="text"
-                value={customCompetitor}
-                onChange={(e) => setCustomCompetitor(e.target.value)}
-                placeholder="Other competitor brand (e.g. Rehau, Fenesta)..."
-                className="flex-1 bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-600 outline-none transition"
+        {/* SECTION 3: CONVERSION CARD */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
+            <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-orange-400" />
+              <span>CONVERSION CARD</span>
+              <span className="text-[10px] bg-orange-950 text-orange-400 px-2 py-0.5 rounded-full font-bold ml-auto">Card 3</span>
+            </h3>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="text-[11px] text-slate-400">Record what he said about order conversion & deal discussion</p>
+            <div className="relative">
+              <textarea
+                value={conversation}
+                onChange={(e) => setConversation(e.target.value)}
+                placeholder="Write or dictate what customer said regarding order conversion, deal terms, readiness to buy..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white text-xs outline-none h-24 resize-none"
               />
-              <button
-                type="button"
-                onClick={addCustomCompetitor}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition shrink-0 cursor-pointer"
-              >
-                Add
-              </button>
+              <div className="absolute right-3 top-3">
+                <VoiceDictationButton onTranscript={(text) => setConversation(prev => `${prev} ${text}`)} />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* SECTION 4: CUSTOMER OPINION CARD */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
+            <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-blue-400" />
+              <span>CUSTOMER OPINION CARD</span>
+              <span className="text-[10px] bg-blue-950 text-blue-400 px-2 py-0.5 rounded-full font-bold ml-auto">Card 4</span>
+            </h3>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="text-[11px] text-slate-400">Record what he said regarding opinion, feedback & requirements</p>
+            <div className="relative">
+              <textarea
+                value={opPricing}
+                onChange={(e) => setOpPricing(e.target.value)}
+                placeholder="Write or dictate what customer said regarding product opinion, quality, competitor comparison, remarks..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white text-xs outline-none h-24 resize-none"
+              />
+              <div className="absolute right-3 top-3">
+                <VoiceDictationButton onTranscript={(text) => setOpPricing(prev => `${prev} ${text}`)} />
+              </div>
+            </div>
+          </div>
+        </div>
+
 
         {/* SECTION 4: DEAL STAGE & FOLLOW-UP (Conversation & Other Opinion Cards) */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4 shadow-sm">
@@ -931,6 +977,21 @@ export const CustomerVisitForm: React.FC<CustomerVisitFormProps> = ({
                 onChange={(e) => setFollowUpDate(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-white outline-none transition font-medium"
               />
+            </div>
+
+            {/* Assigned Salesperson */}
+            <div>
+              <label className="text-slate-300 font-bold block mb-1">Assigned Salesperson</label>
+              <select
+                value={assignedSalesperson}
+                onChange={(e) => setAssignedSalesperson(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-white font-bold outline-none"
+              >
+                <option value={defaultExecutiveName}>{defaultExecutiveName} (Self)</option>
+                {employees.filter(e => e.name !== defaultExecutiveName).map(e => (
+                  <option key={e.id} value={e.name}>{e.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 
